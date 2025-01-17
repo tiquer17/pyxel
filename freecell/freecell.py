@@ -7,17 +7,16 @@ DECK = []
 HOME = []
 FREE = []
 
-SUIT = [2, 3, 1, 0]
 STATE = {
     'isGameOver': False,
+    'isGameClear': False,
     'time': 0,
     'id': 0,
 }
 
-
 # gameover clear right click
 
-# from https://rosettacode.org/wiki/Deal_cards_for_FreeCell#Python
+# copied from https://rosettacode.org/wiki/Deal_cards_for_FreeCell#Python
 def randomGenerator(seed=1):
     max_int32 = (1 << 31) - 1
     seed = seed & max_int32
@@ -65,47 +64,41 @@ class App:
         if id == 0:
             id = pyxel.rndi(1, 32000)
         STATE['id'] = id
+        STATE['isGameClear'] = False
         cards = deal(STATE['id'])
         DECK.clear()
         DECK.extend([[], [], [], [], [], [], [], []])
         for i, c in enumerate(cards):
-            DECK[i % 8].append(Card(c // 4, SUIT[c % 4]))
+            DECK[i % 8].append(Card(c // 4, [2, 3, 1, 0][c % 4]))
         FREE.clear()
         FREE.extend([None, None, None, None])
         HOME.clear()
         HOME.extend([Card(-1, -1), Card(-1, -1), Card(-1, -1), Card(-1, -1)])
-        STATE['time'] = 0
+
 
     def update(self):
-        if  pyxel.btnp(pyxel.KEY_R):
-            self.restart(STATE['id'])
-        if  pyxel.btnp(pyxel.KEY_N):
-            self.restart()
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+            x, y = pyxel.mouse_x, pyxel.mouse_y
+            if 0 <= y and y < 8 and 64 <= x and x < 88: # new
+                STATE['time'] = 0
+                self.restart()
+            if 0 <= y and y < 8 and 120 <= x and x < 144: # retry
+                self.restart(STATE['id'])
+
+        if STATE['isGameClear']:
+            return
 
         if pyxel.frame_count % 30 == 0:
             STATE['time'] += 1
 
-        self.auto_move_to_home()
+        if all([_.num == 12 for _ in HOME]):
+            STATE['isGameClear'] = True
 
-        x, y = pyxel.mouse_x , pyxel.mouse_y
+        if self.auto_move_to_home():
+            return
 
-        dx, dy, fy = -1, -1, -1
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) or pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
-            if x % 24 > 8:
-                dx = x // 24
-            if y < 32 and y >= 8:
-                fy = 1
-            if y >= 40:
-                dy = (y - 40) // T
-
-            if dx >= 0 and dy >= 0:
-                l = len(DECK[dx])
-                if dy >= l + 2:
-                    dy = -1
-                elif dy >= l:
-                    dy = l - 1
-
-            print(dx, dy, fy)
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+            dx, dy, fy = self.get_position(pyxel.mouse_x, pyxel.mouse_y)
             # moving deck cards
             if dy >= 0 and dx >= 0:
                 c1 = DECK[dx][dy]
@@ -120,8 +113,6 @@ class App:
                 num_free_cells = len([_ for _ in FREE if _ is None])
                 num_empty_decks = len([_ for _ in DECK if len(_) == 0])
                 num_super_move = (2 ** num_empty_decks) * (num_free_cells + 1)
-
-                print(num_super_move)
 
                 # moving to another cascade
                 if len(DECK[dx][dy:]) <= num_super_move:
@@ -144,13 +135,6 @@ class App:
 
                 # bottom move
                 if len(DECK[dx]) == dy + 1:
-
-                    # moving to home cell
-                    if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
-                        if HOME[c1.suit].num == c1.num - 1:
-                            HOME[c1.suit] = DECK[dx].pop()
-                            return
-
                     # moving to free cell
                     if dy == len(DECK[dx]) - 1:
                         for i, f in enumerate(FREE):
@@ -158,16 +142,9 @@ class App:
                                 FREE[i] = DECK[dx].pop()
                                 return
 
-
             # moving free cell cards
             if fy >= 0 and dx >= 0 and dx <= 3:
                 c1 = FREE[dx]
-                # moving to home cell
-                if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
-                    if HOME[c1.suit].num == c1.num - 1:
-                        HOME[c1.suit] = c1
-                        FREE[dx] = None
-                        return
 
                 if c1 is not None:
                     # moving to a cascade
@@ -185,6 +162,52 @@ class App:
                             FREE[dx] = None
                             return
 
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
+            dx, dy, fy = self.get_position(pyxel.mouse_x, pyxel.mouse_y)
+            if dy >= 0 and dx >= 0:
+                c1 = DECK[dx][dy]
+                if len(DECK[dx]) == dy + 1:
+                    # moving to home cell
+                    if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
+                        if HOME[c1.suit].num == c1.num - 1:
+                            HOME[c1.suit] = DECK[dx].pop()
+                            return
+
+                    # moving to free cell
+                    if dy == len(DECK[dx]) - 1:
+                        for i, f in enumerate(FREE):
+                            if f is None:
+                                FREE[i] = DECK[dx].pop()
+                                return
+
+            # moving free cell cards
+            if fy >= 0 and dx >= 0 and dx <= 3:
+                c1 = FREE[dx]
+                # moving to home cell
+                if c1 is not None:
+                    if HOME[c1.suit].num == c1.num - 1:
+                        HOME[c1.suit] = c1
+                        FREE[dx] = None
+                        return
+
+
+    def get_position(self, x, y):
+        dx, dy, fy = -1, -1, -1
+        if x % 24 > 8 and x < 200:
+            dx = x // 24
+        if y < 32 and y >= 8:
+            fy = 1
+        if y >= 40:
+            dy = (y - 40) // T
+
+        if dx >= 0 and dy >= 0:
+            l = len(DECK[dx])
+            if dy >= l + 2:
+                dy = -1
+            elif dy >= l:
+                dy = l - 1
+        return dx, dy, fy
+
     def auto_move_to_home(self):
         cur = [h.num for h in HOME]
         for d in DECK:
@@ -192,21 +215,23 @@ class App:
                 c = d[-1]
                 if c.num - cur[c.suit] == 1 and (c.num == 1 or c.num <= min(cur[(c.suit % 2 + 1)::2]) + 1):
                     HOME[c.suit] = d.pop()
-                    return
+                    return True
         for i, c in enumerate(FREE):
             if c is not None:
                 if c.num - cur[c.suit] == 1 and (c.num == 1 or c.num <= min(cur[(c.suit % 2 + 1)::2]) + 1):
                     HOME[c.suit] = c
                     FREE[i] = None
-                    return
-
+                    return True
+        return False
 
     def draw(self):
         pyxel.bltm(0, 0, 0, 0, 0, 256, 256)
 
-        time, id = STATE['time'], STATE['id']
-        pyxel.text(8, 2,  f"#{id:05}", 11)
-        pyxel.text(180, 2, f"{time:3}", 11)
+        mm, ss, id = STATE['time'] // 60 , STATE['time'] % 60, STATE['id']
+        pyxel.text(10, 2, f"{id:05}", 7)
+        pyxel.text(70, 2, f"NEW", 7)
+        pyxel.text(122, 2, f"RETRY", 7)
+        pyxel.text(168, 2, f"{mm:3}:{ss:02}", 7)
 
         for i, d in enumerate(DECK):
             for j, c in enumerate(d):
