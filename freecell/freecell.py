@@ -77,7 +77,7 @@ class App:
 
 
     def update(self):
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+        if pyxel.btn(pyxel.MOUSE_BUTTON_LEFT):
             x, y = pyxel.mouse_x, pyxel.mouse_y
             if 0 <= y and y < 8 and 64 <= x and x < 88: # new
                 STATE['time'] = 0
@@ -97,7 +97,7 @@ class App:
         if self.auto_move_to_home():
             return
 
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+        if pyxel.btn(pyxel.MOUSE_BUTTON_LEFT):
             dx, dy, fy = self.get_position(pyxel.mouse_x, pyxel.mouse_y)
             # moving deck cards
             if dy >= 0 and dx >= 0:
@@ -162,16 +162,16 @@ class App:
                             FREE[dx] = None
                             return
 
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT, 60, 60):
+        # if pyxel.btn(pyxel.MOUSE_BUTTON_RIGHT):
             dx, dy, fy = self.get_position(pyxel.mouse_x, pyxel.mouse_y)
             if dy >= 0 and dx >= 0:
                 c1 = DECK[dx][dy]
                 if len(DECK[dx]) == dy + 1:
                     # moving to home cell
-                    if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
-                        if HOME[c1.suit].num == c1.num - 1:
-                            HOME[c1.suit] = DECK[dx].pop()
-                            return
+                    if HOME[c1.suit].num == c1.num - 1:
+                        HOME[c1.suit] = DECK[dx].pop()
+                        return
 
                     # moving to free cell
                     if dy == len(DECK[dx]) - 1:
@@ -240,14 +240,14 @@ class App:
                 c.draw()
 
         for i, c in enumerate(HOME):
-                c.x = i * 3 * T + 104
-                c.y = 8
-                c.draw()
+            c.x = i * 3 * T + 104
+            c.y = 8
+            c.draw()
 
         for i, c in enumerate(FREE):
-                if c is not None:
-                    c.x = i * 3 * T + 8
-                    c.y = 8
-                    c.draw()
+            if c is not None:
+                c.x = i * 3 * T + 8
+                c.y = 8
+                c.draw()
 
 App()
