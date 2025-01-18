@@ -133,7 +133,7 @@ class App:
                             DECK[dx] = tmp
                             return
 
-                # bottom move
+                # if bottom move
                 if len(DECK[dx]) == dy + 1:
                     # moving to free cell
                     if dy == len(DECK[dx]) - 1:
@@ -141,6 +141,11 @@ class App:
                             if f is None:
                                 FREE[i] = DECK[dx].pop()
                                 return
+
+                # moving to home cell
+                if HOME[c1.suit].num == c1.num - 1:
+                    HOME[c1.suit] = DECK[dx].pop()
+                    return
 
             # moving free cell cards
             if fy >= 0 and dx >= 0 and dx <= 3:
@@ -162,8 +167,13 @@ class App:
                             FREE[dx] = None
                             return
 
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT, 60, 60):
-        # if pyxel.btn(pyxel.MOUSE_BUTTON_RIGHT):
+                    # moving to home cell
+                    if HOME[c1.suit].num == c1.num - 1:
+                        HOME[c1.suit] = c1
+                        FREE[dx] = None
+                        return
+
+        if pyxel.btn(pyxel.MOUSE_BUTTON_RIGHT):
             dx, dy, fy = self.get_position(pyxel.mouse_x, pyxel.mouse_y)
             if dy >= 0 and dx >= 0:
                 c1 = DECK[dx][dy]
