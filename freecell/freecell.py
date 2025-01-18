@@ -9,9 +9,11 @@ FREE = []
 
 STATE = {
     'isGameOver': False,
-    'isGameClear': False,
+    'isNewGame': True,
     'time': 0,
     'id': 0,
+    'newId': '',
+    'idSelection': False,
 }
 
 # gameover clear right click
@@ -65,6 +67,7 @@ class App:
             id = pyxel.rndi(1, 32000)
         STATE['id'] = id
         STATE['isGameClear'] = False
+        STATE['isNewGame'] = True
         cards = deal(STATE['id'])
         DECK.clear()
         DECK.extend([[], [], [], [], [], [], [], []])
@@ -75,14 +78,59 @@ class App:
         HOME.clear()
         HOME.extend([Card(-1, -1), Card(-1, -1), Card(-1, -1), Card(-1, -1)])
 
+    def set_id(self):
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+            x, y = pyxel.mouse_x, pyxel.mouse_y
+            if len(STATE['newId']) < 5:
+                if 48 <= x and x < 56 and 64 <= y and y < 72:
+                    STATE['newId'] += '0'
+                if 56 <= x and x < 64 and 64 <= y and y < 72:
+                    STATE['newId'] += '1'
+                if 64 <= x and x < 72 and 64 <= y and y < 72:
+                    STATE['newId'] += '2'
+                if 72 <= x and x < 80 and 64 <= y and y < 72:
+                    STATE['newId'] += '3'
+                if 48 <= x and x < 56 and 72 <= y and y < 80:
+                    STATE['newId'] += '4'
+                if 56 <= x and x < 64 and 72 <= y and y < 80:
+                    STATE['newId'] += '5'
+                if 64 <= x and x < 72 and 72 <= y and y < 80:
+                    STATE['newId'] += '6'
+                if 72 <= x and x < 80 and 72 <= y and y < 80:
+                    STATE['newId'] += '7'
+                if 48 <= x and x < 56 and 80 <= y and y < 88:
+                    STATE['newId'] += '8'
+                if 56 <= x and x < 64 and 80 <= y and y < 88:
+                    STATE['newId'] += '9'
+            if 64 <= x and x < 80 and 80 <= y and y < 88:
+                STATE['newId'] = STATE['newId'][:-1]
+
+            if 48 <= x and x < 64 and 96 <= y and y < 104:
+                if STATE['newId']:
+                    STATE['time'] = 0
+                    self.restart(int(STATE['newId']))
+                STATE['newId'] = ''
+                STATE['idSelection'] = False
+
+            if 64 <= x and x < 80 and 94 <= y and y < 104:
+                STATE['newId'] = ''
+                STATE['idSelection'] = False
 
     def update(self):
-        if pyxel.btn(pyxel.MOUSE_BUTTON_LEFT):
+        if STATE['idSelection']:
+            self.set_id()
+            return
+
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             x, y = pyxel.mouse_x, pyxel.mouse_y
+            if 0 <= y and y < 8 and 0 <= x and x < 24: # id
+                STATE['idSelection'] = True
             if 0 <= y and y < 8 and 32 <= x and x < 56: # new
                 STATE['time'] = 0
                 self.restart()
             if 0 <= y and y < 8 and 64 <= x and x < 88: # retry
+                if STATE['isGameClear']:
+                    STATE['time'] = 0
                 self.restart(STATE['id'])
 
         if STATE['isGameClear']:
@@ -94,13 +142,15 @@ class App:
         if all([_.num == 12 for _ in HOME]):
             STATE['isGameClear'] = True
 
-        if self.auto_move_to_home():
-            return
+        if not STATE['isNewGame']:
+            if self.auto_move_to_home():
+                return
 
-        if pyxel.btn(pyxel.MOUSE_BUTTON_LEFT):
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             dx, dy, fy = self.get_position(pyxel.mouse_x, pyxel.mouse_y)
             # moving deck cards
             if dy >= 0 and dx >= 0:
+                STATE['isNewGame'] = False
                 c1 = DECK[dx][dy]
 
                 # check if super move is possible.
@@ -173,7 +223,9 @@ class App:
                         FREE[dx] = None
                         return
 
-        if pyxel.btn(pyxel.MOUSE_BUTTON_RIGHT):
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
+            STATE['isNewGame'] = False
+
             dx, dy, fy = self.get_position(pyxel.mouse_x, pyxel.mouse_y)
             if dy >= 0 and dx >= 0:
                 c1 = DECK[dx][dy]
@@ -259,5 +311,18 @@ class App:
                 c.x = i * 2 * T
                 c.y = 8
                 c.draw()
+
+        if STATE['idSelection']:
+            pyxel.bltm(32, 32, 0, 192, 0, 64, 80)
+            newId = STATE['newId']
+
+            pyxel.text(40, 40, f"ENTER DECK ID", 7)
+            pyxel.text(58, 50, f"{newId:>5}", 7)
+            pyxel.text(50, 66, f"0 1 2 3", 7)
+            pyxel.text(50, 74, f"4 5 6 7", 7)
+            pyxel.text(50, 82, f"8 9 DEL", 7)
+            pyxel.text(52, 98, f"OK  BK", 7)
+
+
 
 App()
