@@ -223,12 +223,12 @@ class App:
         for d in DECK:
             if len(d) > 0:
                 c = d[-1]
-                if c.num - cur[c.suit] == 1 and (c.num == 1 or c.num <= min(cur[(c.suit % 2 + 1)::2]) + 1):
+                if c.num - cur[c.suit] == 1 and (c.num == 1 or c.num <= min(cur[((c.suit + 1) % 2)::2]) + 1):
                     HOME[c.suit] = d.pop()
                     return True
         for i, c in enumerate(FREE):
             if c is not None:
-                if c.num - cur[c.suit] == 1 and (c.num == 1 or c.num <= min(cur[(c.suit % 2 + 1)::2]) + 1):
+                if c.num - cur[c.suit] == 1 and (c.num == 1 or c.num <= min(cur[((c.suit + 1) % 2)::2]) + 1):
                     HOME[c.suit] = c
                     FREE[i] = None
                     return True
