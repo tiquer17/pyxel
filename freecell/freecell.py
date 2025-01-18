@@ -54,7 +54,7 @@ class Card:
 
 class App:
     def __init__(self):
-        pyxel.init(200, 200, title="Freecell", display_scale=4, quit_key=pyxel.KEY_Q)
+        pyxel.init(128, 200, title="Freecell", display_scale=4, quit_key=pyxel.KEY_Q)
         pyxel.mouse(True)
         pyxel.load("freecell.pyxres")
         self.restart()
@@ -79,10 +79,10 @@ class App:
     def update(self):
         if pyxel.btn(pyxel.MOUSE_BUTTON_LEFT):
             x, y = pyxel.mouse_x, pyxel.mouse_y
-            if 0 <= y and y < 8 and 64 <= x and x < 88: # new
+            if 0 <= y and y < 8 and 32 <= x and x < 56: # new
                 STATE['time'] = 0
                 self.restart()
-            if 0 <= y and y < 8 and 120 <= x and x < 144: # retry
+            if 0 <= y and y < 8 and 64 <= x and x < 88: # retry
                 self.restart(STATE['id'])
 
         if STATE['isGameClear']:
@@ -203,8 +203,8 @@ class App:
 
     def get_position(self, x, y):
         dx, dy, fy = -1, -1, -1
-        if x % 24 > 8 and x < 200:
-            dx = x // 24
+        if x >= 0 and x < 128:
+            dx = x // 16
         if y < 32 and y >= 8:
             fy = 1
         if y >= 40:
@@ -238,25 +238,25 @@ class App:
         pyxel.bltm(0, 0, 0, 0, 0, 256, 256)
 
         mm, ss, id = STATE['time'] // 60 , STATE['time'] % 60, STATE['id']
-        pyxel.text(10, 2, f"{id:05}", 7)
-        pyxel.text(70, 2, f"NEW", 7)
-        pyxel.text(122, 2, f"RETRY", 7)
-        pyxel.text(168, 2, f"{mm:3}:{ss:02}", 7)
+        pyxel.text(2, 2, f"{id:05}", 7)
+        pyxel.text(38, 2, f"NEW", 7)
+        pyxel.text(66, 2, f"RETRY", 7)
+        pyxel.text(102, 2, f"{mm:3}:{ss:02}", 7)
 
         for i, d in enumerate(DECK):
             for j, c in enumerate(d):
-                c.x = i * 3 * T + 8
+                c.x = i * 2 * T
                 c.y = j * T + 40
                 c.draw()
 
         for i, c in enumerate(HOME):
-            c.x = i * 3 * T + 104
+            c.x = i * 2 * T + 64
             c.y = 8
             c.draw()
 
         for i, c in enumerate(FREE):
             if c is not None:
-                c.x = i * 3 * T + 8
+                c.x = i * 2 * T
                 c.y = 8
                 c.draw()
 
