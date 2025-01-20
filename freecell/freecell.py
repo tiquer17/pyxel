@@ -1,13 +1,41 @@
 import pyxel
 import copy
 
+# from https://qiita.com/igarashisan_t/items/6e5fc39dd5bafd195000
+import platform
+# from js はEmscripten環境以外では例外発生するのでcatchして環境を判定する
+try:
+    from js import navigator
+    is_web_launcher = True
+except ImportError:
+    is_web_launcher = False
+
+class DeviceChecker:
+    def __init__(self):
+        if is_web_launcher:
+            # Web launcherから起動している場合、js関数でOS判定する
+            self.user_agent = navigator.userAgent.lower()
+            self.os_pc = not ("android" in self.user_agent or "iphone" in self.user_agent or "ipad" in self.user_agent)
+        else:
+            # ローカルから起動している場合、platformから判定する
+            self.os_name = platform.system()
+            self.os_pc =  self.os_name == "Windows" or self.os_name == "Darwin" or self.os_name == "Linux"
+
+    def is_pc(self):
+        return self.os_pc
+
+    def is_web_launcher(self):
+        return is_web_launcher
+
 T = 8
 SPD = 4
+FPS = 60
 
 DECK = []
 HOME = []
 FREE = []
 MOVE = []
+UNDO = []
 
 STATE = {
     'isGameOver': False,
@@ -62,8 +90,9 @@ class Card:
 
 class App:
     def __init__(self):
-        pyxel.init(128, 200, title="Freecell", display_scale=4, quit_key=pyxel.KEY_Q, fps=60)
-        pyxel.mouse(True)
+        pyxel.init(128, 200, title="Freecell", display_scale=4, quit_key=pyxel.KEY_Q, fps=FPS)
+        if DeviceChecker().is_pc():
+            pyxel.mouse(True)
         pyxel.load("freecell.pyxres")
         self.restart()
         pyxel.run(self.update, self.draw)
@@ -83,6 +112,7 @@ class App:
         FREE.extend([None, None, None, None])
         HOME.clear()
         HOME.extend([Card(-1, -1), Card(-1, -1), Card(-1, -1), Card(-1, -1)])
+        UNDO.clear()
 
     def set_id(self):
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
@@ -122,7 +152,21 @@ class App:
                 STATE['newId'] = ''
                 STATE['idSelection'] = False
 
-    def move(self, c, fm, to):
+    def undo(self):
+        global DECK, FREE, HOME
+        if UNDO:
+            DECK = UNDO[0]
+            FREE = UNDO[1]
+            HOME = UNDO[2]
+            UNDO.clear()
+
+    def has_undo(self):
+        return len(UNDO) > 0
+
+    def move(self, c, fm, to, undo=True):
+        if undo:
+            global UNDO
+            UNDO = [copy.deepcopy(DECK), copy.deepcopy(FREE), copy.deepcopy(HOME)]
         c.fm, c.to, c.cnt = fm, to, 0
         MOVE.append(c)
 
@@ -154,18 +198,24 @@ class App:
             x, y = pyxel.mouse_x, pyxel.mouse_y
             if 0 <= y and y < 8 and 0 <= x and x < 24: # id
                 STATE['idSelection'] = True
-            if 0 <= y and y < 8 and 32 <= x and x < 56: # new
+                return
+            if 0 <= y and y < 8 and 24 <= x and x < 48: # new
                 STATE['time'] = 0
                 self.restart()
-            if 0 <= y and y < 8 and 64 <= x and x < 88: # retry
+                return
+            if 0 <= y and y < 8 and 48 <= x and x < 72: # retry
                 if STATE['isGameClear']:
                     STATE['time'] = 0
                 self.restart(STATE['id'])
+                return
+            if 0 <= y and y < 8 and 72 <= x and x < 96: # undo
+                self.undo()
+                return
 
         if STATE['isGameClear']:
             return
 
-        if pyxel.frame_count % 30 == 0:
+        if pyxel.frame_count % FPS == 0:
             STATE['time'] += 1
 
         if all([_.num == 12 for _ in HOME]):
@@ -205,7 +255,7 @@ class App:
                             c2 = DECK[i % 8][-1]
                             if c2.num - c1.num == 1 and (c2.suit + c1.suit) % 2 == 1:
                                 for j, d in enumerate(DECK[dx][dy:]):
-                                    self.move(d, (dx, dy), (i % 8, len(DECK[i % 8]) + j + 1))
+                                    self.move(d, (dx, dy + j), (i % 8, len(DECK[i % 8]) + j))
                                 DECK[dx] = DECK[dx][:dy]
                                 return
                 # moving to empty cascade
@@ -213,7 +263,7 @@ class App:
                     for i in range(dx + 1, dx + 8):
                         if len(DECK[i % 8]) == 0:
                             for j, d in enumerate(DECK[dx][dy:]):
-                                self.move(d, (dx, dy), (i % 8, len(DECK[i % 8]) + j + 1))
+                                self.move(d, (dx, dy + j), (i % 8, len(DECK[i % 8]) + j))
                             DECK[dx] = DECK[dx][:dy]
                             return
 
@@ -223,12 +273,14 @@ class App:
                     if dy == len(DECK[dx]) - 1:
                         for i, f in enumerate(FREE):
                             if f is None:
-                                self.move(DECK[dx].pop(), (dx, dy), (i, -4))
+                                self.move(c1, (dx, dy), (i, -4))
+                                DECK[dx].pop()
                                 return
 
                     # moving to home cell
                     if HOME[c1.suit].num == c1.num - 1:
-                        self.move(DECK[dx].pop(), (dx, dy), (c1.suit + 4, -4))
+                        self.move(c1, (dx, dy), (c1.suit + 4, -4))
+                        DECK[dx].pop()
                         return
 
             # moving free cell cards
@@ -241,13 +293,13 @@ class App:
                         if len(DECK[i % 8]) > 0:
                             c2 = DECK[i % 8][-1]
                             if c2.num - c1.num == 1 and (c2.suit + c1.suit) % 2 == 1:
-                                self.move(c1, (dx, -4), (i % 8, len(DECK[i % 8]) + 1))
+                                self.move(c1, (dx, -4), (i % 8, len(DECK[i % 8])))
                                 FREE[dx] = None
                                 return
                     # moving to an empty cascade
                     for i in range(8):
                         if len(DECK[i % 8]) == 0:
-                            self.move(c1, (dx, -4), (i % 8, 1))
+                            self.move(c1, (dx, -4), (i % 8, 0))
                             FREE[dx] = None
                             return
 
@@ -274,7 +326,8 @@ class App:
                     if dy == len(DECK[dx]) - 1:
                         for i, f in enumerate(FREE):
                             if f is None:
-                                self.move(DECK[dx].pop(), (dx, dy), (i, -4))
+                                self.move(c1, (dx, dy), (i, -4))
+                                DECK[dx].pop()
                                 return
 
             # moving free cell cards
@@ -310,12 +363,12 @@ class App:
             if len(d) > 0:
                 c = d[-1]
                 if c.num - cur[c.suit] == 1 and (c.num == 1 or c.num <= min(cur[((c.suit + 1) % 2)::2]) + 1):
-                    self.move(d.pop(), (i, len(d)), (c.suit + 4, -4))
+                    self.move(d.pop(), (i, len(d)), (c.suit + 4, -4), False)
                     return True
         for i, c in enumerate(FREE):
             if c is not None:
                 if c.num - cur[c.suit] == 1 and (c.num == 1 or c.num <= min(cur[((c.suit + 1) % 2)::2]) + 1):
-                    self.move(c, (i, -4), (c.suit + 4, -4))
+                    self.move(c, (i, -4), (c.suit + 4, -4), False)
                     FREE[i] = None
                     return True
         return False
@@ -323,10 +376,11 @@ class App:
     def draw(self):
         pyxel.bltm(0, 0, 0, 0, 0, 256, 256)
 
-        mm, ss, id = STATE['time'] // 60 , STATE['time'] % 60, STATE['id']
-        pyxel.text(2, 2, f"{id:05}", 7)
-        pyxel.text(38, 2, f"NEW", 7)
-        pyxel.text(66, 2, f"RETRY", 7)
+        mm, ss = STATE['time'] // 60 , STATE['time'] % 60
+        pyxel.text(2, 2, f"{STATE['id']:05}", 7)
+        pyxel.text(30, 2, f"NEW", 7)
+        pyxel.text(50, 2, f"RETRY", 7)
+        pyxel.text(76, 2, f"UNDO", 7 if self.has_undo() else 11)
         pyxel.text(102, 2, f"{mm:3}:{ss:02}", 7)
 
         for i, d in enumerate(DECK):
@@ -351,15 +405,11 @@ class App:
 
         if STATE['idSelection']:
             pyxel.bltm(32, 32, 0, 192, 0, 64, 80)
-            newId = STATE['newId']
-
             pyxel.text(40, 40, f"ENTER DECK ID", 7)
-            pyxel.text(58, 50, f"{newId:>5}", 7)
+            pyxel.text(58, 50, f"{STATE['newId']:>5}", 7)
             pyxel.text(50, 66, f"0 1 2 3", 7)
             pyxel.text(50, 74, f"4 5 6 7", 7)
             pyxel.text(50, 82, f"8 9 DEL", 7)
             pyxel.text(52, 98, f"OK  BK", 7)
-
-
 
 App()
