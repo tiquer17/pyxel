@@ -45,6 +45,7 @@ STATE = {
     'newId': '',
     'idSelection': False,
     'isMoving': False,
+    'rightClick': False,
 }
 
 # gameover clear right click
@@ -103,6 +104,7 @@ class App:
         STATE['id'] = id
         STATE['isGameClear'] = False
         STATE['isNewGame'] = True
+        STATE['rightClick'] = False
         cards = deal(STATE['id'])
         DECK.clear()
         DECK.extend([[], [], [], [], [], [], [], []])
@@ -164,6 +166,7 @@ class App:
         return len(UNDO) > 0
 
     def move(self, c, fm, to, undo=True):
+        STATE['rightClick'] = False
         if undo:
             global UNDO
             UNDO = [copy.deepcopy(DECK), copy.deepcopy(FREE), copy.deepcopy(HOME)]
@@ -191,6 +194,7 @@ class App:
     def update(self):
         global MOVE
         if STATE['idSelection']:
+            STATE['rightClick'] = False
             self.set_id()
             return
         
@@ -210,6 +214,10 @@ class App:
                 return
             if 0 <= y and y < 8 and 72 <= x and x < 96: # undo
                 self.undo()
+                STATE['rightClick'] = False
+                return
+            if 184 <= y and y < 200 and 112 <= x and x < 128: # right click
+                STATE['rightClick'] = not STATE['rightClick']
                 return
 
         if STATE['isGameClear']:
@@ -230,7 +238,7 @@ class App:
             if self.auto_move_to_home():
                 return
 
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and not STATE['rightClick']:
             dx, dy = self.get_position(pyxel.mouse_x, pyxel.mouse_y)
             # moving deck cards
             if dy >= 0 and dx >= 0 and dx < 8:
@@ -309,19 +317,13 @@ class App:
                         FREE[dx] = None
                         return
 
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT) or (pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and STATE['rightClick']):
             STATE['isNewGame'] = False
 
             dx, dy= self.get_position(pyxel.mouse_x, pyxel.mouse_y)
             if dy >= 0 and dx >= 0 and dx < 8:
                 c1 = DECK[dx][dy]
                 if len(DECK[dx]) == dy + 1:
-                    # moving to home cell
-                    if HOME[c1.suit].num == c1.num - 1:
-                        self.move(c1, (dx, dy), (c1.suit + 4, -4))
-                        DECK[dx].pop()
-                        return
-
                     # moving to free cell
                     if dy == len(DECK[dx]) - 1:
                         for i, f in enumerate(FREE):
@@ -329,6 +331,11 @@ class App:
                                 self.move(c1, (dx, dy), (i, -4))
                                 DECK[dx].pop()
                                 return
+                    # moving to home cell
+                    if HOME[c1.suit].num == c1.num - 1:
+                        self.move(c1, (dx, dy), (c1.suit + 4, -4))
+                        DECK[dx].pop()
+                        return
 
             # moving free cell cards
             if dy == -4 and dx >= 0 and dx < 4:
@@ -339,6 +346,7 @@ class App:
                         self.move(c1, (dx, -4), (c1.suit + 4, -4))
                         FREE[dx] = None
                         return
+            STATE['rightClick'] = False
 
     def get_position(self, x, y):
         dx, dy = -1, -1
@@ -411,5 +419,7 @@ class App:
             pyxel.text(50, 74, f"4 5 6 7", 7)
             pyxel.text(50, 82, f"8 9 DEL", 7)
             pyxel.text(52, 98, f"OK  BK", 7)
+
+        pyxel.blt(112, 184 , 0, 56, 48, 16, 16, 15 if STATE['rightClick'] else 7)
 
 App()
