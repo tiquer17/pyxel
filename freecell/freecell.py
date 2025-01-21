@@ -202,6 +202,7 @@ class App:
             x, y = pyxel.mouse_x, pyxel.mouse_y
             if 0 <= y and y < 8 and 0 <= x and x < 24: # id
                 STATE['idSelection'] = True
+                STATE['newId'] = str(STATE['id'])
                 return
             if 0 <= y and y < 8 and 24 <= x and x < 48: # new
                 STATE['time'] = 0
