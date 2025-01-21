@@ -155,8 +155,8 @@ class App:
                 STATE['idSelection'] = False
 
     def undo(self):
-        global DECK, FREE, HOME
-        if UNDO:
+        if self.has_undo():
+            global DECK, FREE, HOME
             DECK = UNDO[0]
             FREE = UNDO[1]
             HOME = UNDO[2]
@@ -228,6 +228,7 @@ class App:
 
         if all([_.num == 12 for _ in HOME]):
             STATE['isGameClear'] = True
+            UNDO.clear()
             return
 
         if MOVE:
