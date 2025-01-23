@@ -45,7 +45,7 @@ STATE = {
     'newId': '',
     'idSelection': False,
     'isMoving': False,
-    'rightClick': False,
+    'help': False,
 }
 
 # gameover clear right click
@@ -105,7 +105,6 @@ class App:
         STATE['isGameOver'] = False
         STATE['isGameClear'] = False
         STATE['isNewGame'] = True
-        STATE['rightClick'] = False
         cards = deal(STATE['id'])
         DECK.clear()
         DECK.extend([[], [], [], [], [], [], [], []])
@@ -181,7 +180,6 @@ class App:
         return False
 
     def move(self, c, fm, to, undo=True):
-        STATE['rightClick'] = False
         if undo:
             global UNDO
             UNDO = [copy.deepcopy(DECK), copy.deepcopy(FREE), copy.deepcopy(HOME)]
@@ -258,13 +256,22 @@ class App:
             return True
         return False
 
+    def help(self):
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+            x, y = pyxel.mouse_x, pyxel.mouse_y
+            if 56 <= x and x < 72 and 88 <= y and y < 96:
+                STATE['help'] = False
+
     def update(self):
         global MOVE
         if STATE['idSelection']:
-            STATE['rightClick'] = False
             self.set_id()
             return
-        
+
+        if STATE['help']:
+            self.help()
+            return
+
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             x, y = pyxel.mouse_x, pyxel.mouse_y
             if 0 <= y and y < 8 and 0 <= x and x < 24: # id
@@ -282,10 +289,9 @@ class App:
                 return
             if 0 <= y and y < 8 and 72 <= x and x < 96: # undo
                 self.undo()
-                STATE['rightClick'] = False
                 return
-            if 184 <= y and y < 200 and 112 <= x and x < 128: # right click
-                STATE['rightClick'] = not STATE['rightClick']
+            if 0 <= y and y < 8 and 96 <= x and x < 104: # help
+                STATE['help'] = True                
                 return
 
         if STATE['isGameClear']:
@@ -295,7 +301,8 @@ class App:
             return
 
         if pyxel.frame_count % FPS == 0:
-            STATE['time'] += 1
+            if STATE['time'] < 5999:
+                STATE['time'] += 1
 
         if MOVE:
             self.do_move()
@@ -314,7 +321,7 @@ class App:
             STATE['isGameOver'] = True
             return
 
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and not STATE['rightClick']:
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             x, y = self.get_position(pyxel.mouse_x, pyxel.mouse_y)
             # moving deck cards
             if y >= 0 and x >= 0 and x < 8:
@@ -356,25 +363,39 @@ class App:
                     if self.move_to_home_cell(x, y):
                         return
 
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT) or (pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and STATE['rightClick']):
+            # moving to home cell card
+            if y == -4 and x >= 0 and x >= 4 and x < 8:
+                for i, c in enumerate(FREE):
+                    if c is not None:
+                        if c.num - HOME[x - 4].num == 1 and c.suit == x - 4:
+                            self.move(c, (i, -4), (x, -4))
+                            FREE[i] = None
+                            return
+                for i, d in enumerate(DECK):
+                    if len(d) > 0:
+                        c = d[-1]
+                        if c.num - HOME[x - 4].num == 1 and c.suit == x - 4:
+                            self.move(c, (i, len(d)), (x, -4))
+                            d.pop()
+                            return
+
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
             STATE['isNewGame'] = False
 
             x, y = self.get_position(pyxel.mouse_x, pyxel.mouse_y)
             if y >= 0 and x >= 0 and x < 8:
-                # moving to free cell
-                if self.move_to_free_cell(x, y):
-                    return
                 # moving to home cell
                 if self.move_to_home_cell(x, y):
                     return
+                # # moving to free cell
+                # if self.move_to_free_cell(x, y):
+                #     return
 
             # moving free cell cards
             if y == -4 and x >= 0 and x < 4:
                 # moving to home cell
                 if self.move_to_home_cell(x, y):
                     return
-
-            STATE['rightClick'] = False
 
     def get_position(self, x, y):
         dx, dy = -1, -1
@@ -399,7 +420,8 @@ class App:
             if len(d) > 0:
                 c = d[-1]
                 if c.num - cur[c.suit] == 1 and (c.num == 1 or c.num <= min(cur[((c.suit + 1) % 2)::2]) + 1):
-                    self.move(d.pop(), (i, len(d)), (c.suit + 4, -4), False)
+                    self.move(c, (i, len(d)), (c.suit + 4, -4), False)
+                    d.pop()
                     return True
         for i, c in enumerate(FREE):
             if c is not None:
@@ -417,6 +439,7 @@ class App:
         pyxel.text(30, 2, f"NEW", 7)
         pyxel.text(50, 2, f"RETRY", 7)
         pyxel.text(76, 2, f"UNDO", 7 if self.has_undo() else 11)
+        pyxel.text(98, 2, f"?", 7)
         pyxel.text(102, 2, f"{mm:3}:{ss:02}", 7)
 
         for i, d in enumerate(DECK):
@@ -445,13 +468,18 @@ class App:
 
         if STATE['idSelection']:
             pyxel.bltm(32, 32, 0, 192, 0, 64, 80)
-            pyxel.text(40, 40, f"ENTER DECK ID", 7)
+            pyxel.text(40, 40, f"ENTER GAME ID", 7)
             pyxel.text(58, 50, f"{STATE['newId']:>5}", 7)
             pyxel.text(50, 66, f"0 1 2 3", 7)
             pyxel.text(50, 74, f"4 5 6 7", 7)
             pyxel.text(50, 82, f"8 9 DEL", 7)
             pyxel.text(52, 98, f"OK  BK", 7)
 
-        pyxel.blt(112, 184 , 0, 56, 48, 16, 16, 15 if STATE['rightClick'] else 7)
+        if STATE['help']:
+            pyxel.bltm(0, 40, 0, 192, 128, 128, 64)
+            pyxel.text(0, 48, "  Tap sequence: Move at once", 7)
+            pyxel.text(0, 64, " Tap home cell: Move next card", 7)
+            pyxel.text(0, 80, "   Tap game ID: Select game", 7)
+            pyxel.text(60, 90, f"OK", 7)
 
 App()
