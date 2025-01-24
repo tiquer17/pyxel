@@ -144,11 +144,12 @@ class App:
                 STATE['newId'] = STATE['newId'][:-1]
 
             if 48 <= x and x < 64 and 96 <= y and y < 104:
-                if STATE['newId']:
+                if STATE['newId'] and int(STATE['newId']) != STATE['id']:
                     STATE['time'] = 0
                     self.restart(int(STATE['newId']))
                 STATE['newId'] = ''
                 STATE['idSelection'] = False
+                return
 
             if 64 <= x and x < 80 and 94 <= y and y < 104:
                 STATE['newId'] = ''
@@ -435,7 +436,7 @@ class App:
         pyxel.bltm(0, 0, 0, 0, 0, 256, 256)
 
         mm, ss = STATE['time'] // 60 , STATE['time'] % 60
-        pyxel.text(2, 2, f"{STATE['id']:05}", 7)
+        pyxel.text(2, 2, f"{STATE['id']:05}", 15)
         pyxel.text(30, 2, f"NEW", 7)
         pyxel.text(50, 2, f"RETRY", 7)
         pyxel.text(76, 2, f"UNDO", 7 if self.has_undo() else 11)
@@ -459,6 +460,12 @@ class App:
                 c.y = 8
                 c.draw()
 
+        for i in [0, 16, 32, 48]:
+            pyxel.line(65 + i, 8, 78 + i , 8, 6)
+            pyxel.line(65 + i, 31, 78 + i , 31, 6)
+            pyxel.line(64 + i, 9, 64 + i , 30, 6)
+            pyxel.line(79 + i, 9, 79 + i , 30, 6)
+
         for c in MOVE:
             c.draw()
 
@@ -468,7 +475,8 @@ class App:
 
         if STATE['idSelection']:
             pyxel.bltm(32, 32, 0, 192, 0, 64, 80)
-            pyxel.text(40, 40, f"ENTER GAME ID", 7)
+            pyxel.text(40, 40, f"ENTER", 7)
+            pyxel.text(40, 40, f"      GAME ID", 15)
             pyxel.text(58, 50, f"{STATE['newId']:>5}", 7)
             pyxel.text(50, 66, f"0 1 2 3", 7)
             pyxel.text(50, 74, f"4 5 6 7", 7)
@@ -477,9 +485,11 @@ class App:
 
         if STATE['help']:
             pyxel.bltm(0, 40, 0, 192, 128, 128, 64)
-            pyxel.text(0, 48, "  Tap sequence: Move at once", 7)
-            pyxel.text(0, 64, " Tap home cell: Move next card", 7)
-            pyxel.text(0, 80, "   Tap game ID: Select game", 7)
+            pyxel.text(0, 48, "  TAP SEQUENCE: MOVE AT ONCE", 7)
+            pyxel.text(0, 64, " TAP          : MOVE NEXT CARD", 7)
+            pyxel.text(0, 64, "     HOME CELL", 6)
+            pyxel.text(0, 80, "   TAP        : SELECT GAME", 7)
+            pyxel.text(0, 80, "       GAME ID", 15)
             pyxel.text(60, 90, f"OK", 7)
 
 App()
