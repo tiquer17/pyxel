@@ -44,7 +44,6 @@ STATE = {
     'id': 0,
     'newId': '',
     'idSelection': False,
-    'isMoving': False,
     'help': False,
 }
 
@@ -184,13 +183,13 @@ class App:
         if undo:
             global UNDO
             UNDO = [copy.deepcopy(DECK), copy.deepcopy(FREE), copy.deepcopy(HOME)]
-        c.fm, c.to, c.cnt = fm, to, 1
+        c.fm, c.to, c.cnt = fm, to, 0
         MOVE.append(c)
 
     def do_move(self):
         global MOVE
         for m in MOVE:
-            if m.cnt == SPD - 1:
+            if m.cnt == SPD:
                 if m.to[1] >= 0:
                     DECK[m.to[0]].append(m)
                 elif m.to[0] < 4:
