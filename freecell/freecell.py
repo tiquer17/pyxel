@@ -265,18 +265,6 @@ class App:
     def update(self):
         global MOVE
 
-        if pyxel.frame_count % FPS == 0 and not STATE['idSelection'] and not STATE['help']:
-            if STATE['time'] < 5999:
-                STATE['time'] += 1
-
-        if MOVE:
-            self.do_move()
-            return
-
-        if not STATE['isNewGame']:
-            if self.auto_move_to_home():
-                return
-
         if STATE['idSelection']:
             self.set_id()
             return
@@ -310,7 +298,19 @@ class App:
         if STATE['isGameClear'] or STATE['isGameOver']:
             return
 
-        if all([_.num == 12 for _ in HOME]):
+        if pyxel.frame_count % FPS == 0:
+            if STATE['time'] < 5999:
+                STATE['time'] += 1
+
+        if MOVE:
+            self.do_move()
+            return
+
+        if not STATE['isNewGame']:
+            if self.auto_move_to_home():
+                return
+
+        if all([c.num == 12 for c in HOME]):
             STATE['isGameClear'] = True
             UNDO.clear()
             return
