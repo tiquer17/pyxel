@@ -264,6 +264,19 @@ class App:
 
     def update(self):
         global MOVE
+
+        if pyxel.frame_count % FPS == 0 and not STATE['idSelection'] and not STATE['help']:
+            if STATE['time'] < 5999:
+                STATE['time'] += 1
+
+        if MOVE:
+            self.do_move()
+            return
+
+        if not STATE['isNewGame']:
+            if self.auto_move_to_home():
+                return
+
         if STATE['idSelection']:
             self.set_id()
             return
@@ -294,23 +307,8 @@ class App:
                 STATE['help'] = True                
                 return
 
-        if STATE['isGameClear']:
+        if STATE['isGameClear'] or STATE['isGameOver']:
             return
-
-        if STATE['isGameOver']:
-            return
-
-        if pyxel.frame_count % FPS == 0:
-            if STATE['time'] < 5999:
-                STATE['time'] += 1
-
-        if MOVE:
-            self.do_move()
-            return
-
-        if not STATE['isNewGame']:
-            if self.auto_move_to_home():
-                return
 
         if all([_.num == 12 for _ in HOME]):
             STATE['isGameClear'] = True
@@ -435,7 +433,7 @@ class App:
         pyxel.bltm(0, 0, 0, 0, 0, 256, 256)
 
         mm, ss = STATE['time'] // 60 , STATE['time'] % 60
-        pyxel.text(2, 2, f"{STATE['id']:05}", 15)
+        pyxel.text(2, 2, f"{STATE['id']:05}", 15 if STATE['help'] or STATE['idSelection'] else 7)
         pyxel.text(30, 2, f"NEW", 7)
         pyxel.text(50, 2, f"RETRY", 7)
         pyxel.text(76, 2, f"UNDO", 7 if self.has_undo() else 11)
