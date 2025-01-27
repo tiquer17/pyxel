@@ -27,9 +27,10 @@ class DeviceChecker:
     def is_web_launcher(self):
         return is_web_launcher
 
-T = 8
+T = 16
 SPD = 4
 FPS = 60
+BASELINE = T * 5
 
 DECK = []
 HOME = []
@@ -88,12 +89,18 @@ class Card:
         pyxel.blt(self.x, (self.y + 2 * T) , 0, self.suit * T, 0, - T, - T ,15)
         pyxel.blt((self.x + T) , (self.y + 2 * T), 0, self.num * T, col * T, - T, - T, 15)
 
+
+def type_text(x, y, s):
+    for i, c in enumerate(s):
+        ascii = ord(c) - 32
+        pyxel.blt(x + i * 8, y, 1, (ascii % 16) * 8, (ascii //16) * 16, 8, 16, 0)
+
 class App:
     def __init__(self):
-        pyxel.init(128, 200, title="Freecell", display_scale=4, quit_key=pyxel.KEY_Q, fps=FPS)
+        pyxel.init(T * 16, T * 25, title="Freecell", display_scale= 32 // T , quit_key=pyxel.KEY_Q, fps=FPS)
         if DeviceChecker().is_pc():
             pyxel.mouse(True)
-        pyxel.load("freecell.pyxres")
+        pyxel.load("freecell.pyxres" if T == 8 else "freecell16.pyxres")
         self.restart()
         pyxel.run(self.update, self.draw)
 
@@ -119,30 +126,13 @@ class App:
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             x, y = pyxel.mouse_x, pyxel.mouse_y
             if len(STATE['newId']) < 5:
-                if 48 <= x and x < 56 and 64 <= y and y < 72:
-                    STATE['newId'] += '0'
-                if 56 <= x and x < 64 and 64 <= y and y < 72:
-                    STATE['newId'] += '1'
-                if 64 <= x and x < 72 and 64 <= y and y < 72:
-                    STATE['newId'] += '2'
-                if 72 <= x and x < 80 and 64 <= y and y < 72:
-                    STATE['newId'] += '3'
-                if 48 <= x and x < 56 and 72 <= y and y < 80:
-                    STATE['newId'] += '4'
-                if 56 <= x and x < 64 and 72 <= y and y < 80:
-                    STATE['newId'] += '5'
-                if 64 <= x and x < 72 and 72 <= y and y < 80:
-                    STATE['newId'] += '6'
-                if 72 <= x and x < 80 and 72 <= y and y < 80:
-                    STATE['newId'] += '7'
-                if 48 <= x and x < 56 and 80 <= y and y < 88:
-                    STATE['newId'] += '8'
-                if 56 <= x and x < 64 and 80 <= y and y < 88:
-                    STATE['newId'] += '9'
-            if 64 <= x and x < 80 and 80 <= y and y < 88:
+                for i in range(10):
+                    if T * (6 + i % 4) <= x and x < T * (7 + i % 4) and T * (8 + i // 4) <= y and y < T * (9 + i // 4):
+                        STATE['newId'] += str(i)
+            if T * 8 <= x and x < T * 10 and T * 10 <= y and y < T * 11:
                 STATE['newId'] = STATE['newId'][:-1]
 
-            if 48 <= x and x < 64 and 96 <= y and y < 104:
+            if T * 6 <= x and x < T * 8 and T * 12 <= y and y < T * 13:
                 if STATE['newId'] and int(STATE['newId']) != STATE['id']:
                     STATE['time'] = 0
                     self.restart(int(STATE['newId']))
@@ -150,7 +140,7 @@ class App:
                 STATE['idSelection'] = False
                 return
 
-            if 64 <= x and x < 80 and 94 <= y and y < 104:
+            if T * 8 <= x and x < T * 10 and T * 12 <= y and y < T * 13:
                 STATE['newId'] = ''
                 STATE['idSelection'] = False
 
@@ -200,7 +190,7 @@ class App:
                 m.to = None
             else:
                 m.x = (m.fm[0] * (SPD - m.cnt) + m.to[0] * m.cnt) * T / SPD * 2
-                m.y = (m.fm[1] * (SPD - m.cnt) + m.to[1] * m.cnt) * T / SPD + 40
+                m.y = (m.fm[1] * (SPD - m.cnt) + m.to[1] * m.cnt) * T / SPD + BASELINE
                 m.cnt += 1
         MOVE = [m for m in MOVE if m.fm]
 
@@ -259,7 +249,7 @@ class App:
     def help(self):
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             x, y = pyxel.mouse_x, pyxel.mouse_y
-            if 56 <= x and x < 72 and 88 <= y and y < 96:
+            if T * 7 <= x and x < T * 9 and T * 11 <= y and y < T * 12:
                 STATE['help'] = False
 
     def update(self):
@@ -287,23 +277,23 @@ class App:
 
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             x, y = pyxel.mouse_x, pyxel.mouse_y
-            if 0 <= y and y < 8 and 0 <= x and x < 24: # id
+            if 0 <= y and y < T and 0 <= x and x < T * 3: # id
                 STATE['idSelection'] = True
                 STATE['newId'] = str(STATE['id'])
                 return
-            if 0 <= y and y < 8 and 24 <= x and x < 48: # new
+            if 0 <= y and y < T and T * 3 <= x and x < T * 6: # new
                 STATE['time'] = 0
                 self.restart()
                 return
-            if 0 <= y and y < 8 and 48 <= x and x < 72: # retry
+            if 0 <= y and y < T and T * 6 <= x and x < T * 9: # retry
                 if STATE['isGameClear']:
                     STATE['time'] = 0
                 self.restart(STATE['id'])
                 return
-            if 0 <= y and y < 8 and 72 <= x and x < 96: # undo
+            if 0 <= y and y < T and T * 9 <= x and x < T * 12: # undo
                 self.undo()
                 return
-            if 0 <= y and y < 8 and 96 <= x and x < 104: # help
+            if 0 <= y and y < T and T * 12 <= x and x < T * 13: # help
                 STATE['help'] = True                
                 return
 
@@ -397,12 +387,12 @@ class App:
 
     def get_position(self, x, y):
         dx, dy = -1, -1
-        if x >= 0 and x < 128:
-            dx = x // 16
-        if y < 32 and y >= 8:
+        if x >= 0 and x < T * 16:
+            dx = x // (T * 2)
+        if y < T * 4 and y >= T:
             dy = -4
-        if y >= 40:
-            dy = (y - 40) // T
+        if y >= BASELINE:
+            dy = (y - BASELINE) // T
 
         if dx >= 0 and dy >= 0:
             l = len(DECK[dx])
@@ -430,63 +420,93 @@ class App:
         return False
 
     def draw(self):
-        pyxel.bltm(0, 0, 0, 0, 0, 256, 256)
+        pyxel.bltm(0, 0, 0, 0, 0, T * 16, T * 25)
 
         mm, ss = STATE['time'] // 60 , STATE['time'] % 60
-        pyxel.text(2, 2, f"{STATE['id']:05}", 15 if STATE['help'] or STATE['idSelection'] else 7)
-        pyxel.text(30, 2, f"NEW", 7)
-        pyxel.text(50, 2, f"RETRY", 7)
-        pyxel.text(76, 2, f"UNDO", 7 if self.has_undo() else 11)
-        pyxel.text(98, 2, f"?", 7)
-        pyxel.text(102, 2, f"{mm:3}:{ss:02}", 7)
+        if T == 8:
+            pyxel.text(2, 2, f"{STATE['id']:05}", 15 if STATE['help'] or STATE['idSelection'] else 7)
+            pyxel.text(30, 2, f"NEW", 7)
+            pyxel.text(50, 2, f"RETRY", 7)
+            pyxel.text(76, 2, f"UNDO", 7 if self.has_undo() else 11)
+            pyxel.text(98, 2, f"?", 7)
+            pyxel.text(102, 2, f"{mm:3}:{ss:02}", 7)
+        else:
+            type_text(4, 0, f"{STATE['id']:05}")
+            type_text(3 * T + 12, 0, f"NEW")
+            type_text(6 * T + 4, 0, f"RETRY")
+            type_text(9 * T + 8, 0, f"UNDO")
+            type_text(12 * T + 4, 0, f"?")
+            type_text(T * 12 + 12, 0, f"{mm:3}:{ss:02}")
+
 
         for i, d in enumerate(DECK):
             for j, c in enumerate(d):
                 c.x = i * 2 * T
-                c.y = j * T + 40
+                c.y = j * T + BASELINE
                 c.draw()
 
         for i, c in enumerate(HOME):
-            c.x = i * 2 * T + 64
-            c.y = 8
+            c.x = i * 2 * T + T * 8
+            c.y = T
             c.draw()
 
         for i, c in enumerate(FREE):
             if c is not None:
                 c.x = i * 2 * T
-                c.y = 8
+                c.y = T
                 c.draw()
 
-        for i in [0, 16, 32, 48]:
-            pyxel.line(65 + i, 8, 78 + i , 8, 6)
-            pyxel.line(65 + i, 31, 78 + i , 31, 6)
-            pyxel.line(64 + i, 9, 64 + i , 30, 6)
-            pyxel.line(79 + i, 9, 79 + i , 30, 6)
+        if T == 8:
+            for i in [0, 16, 32, 48]:
+                pyxel.line(65 + i, 8, 78 + i , 8, 6)
+                pyxel.line(65 + i, 31, 78 + i , 31, 6)
+                pyxel.line(64 + i, 9, 64 + i , 30, 6)
+                pyxel.line(79 + i, 9, 79 + i , 30, 6)
 
         for c in MOVE:
             c.draw()
 
         if STATE['isGameOver']:
-            pyxel.bltm(40, 48, 0, 40, 48, 48, 24)
-            pyxel.text(48, 58, f"YOU LOSE", 7)
+            pyxel.bltm(T * 5, T * 6, 0, T * 5, T * 6, T * 6, T * 3)
+            if T == 8:
+                pyxel.text(T * 6, T * 7 + 2, f"YOU LOSE", 7)
+            else:
+                type_text(T * 6, T * 7, f"YOU LOSE")
 
         if STATE['idSelection']:
-            pyxel.bltm(32, 32, 0, 192, 0, 64, 80)
-            pyxel.text(40, 40, f"ENTER", 7)
-            pyxel.text(40, 40, f"      GAME ID", 15)
-            pyxel.text(58, 50, f"{STATE['newId']:>5}", 7)
-            pyxel.text(50, 66, f"0 1 2 3", 7)
-            pyxel.text(50, 74, f"4 5 6 7", 7)
-            pyxel.text(50, 82, f"8 9 DEL", 7)
-            pyxel.text(52, 98, f"OK  BK", 7)
+            pyxel.bltm(T * 4, T * 4, 0, T * 24, 0, T * 8, T * 10)
+            if T == 8:
+                pyxel.text(T * 5, T * 5, f"ENTER", 7)
+                pyxel.text(T * 5, T * 5, f"      GAME ID", 15)
+                pyxel.text(T * 7 + 2, T * 6 + 2, f"{STATE['newId']:>5}", 7)
+                pyxel.text(T * 6 + 2, T * 8 + 2, f"0 1 2 3", 7)
+                pyxel.text(T * 6 + 2, T * 9 + 2, f"4 5 6 7", 7)
+                pyxel.text(T * 6 + 2, T * 10 + 2, f"8 9 DEL", 7)
+                pyxel.text(T * 6 + 4, T * 12 + 2, f"OK  BK", 7)
+            else:
+                type_text(T * 5, T * 5, f"ENTER")
+                type_text(T * 5, T * 5, f"      GAME ID")
+                type_text(T * 7 + 4, T * 6, f"{STATE['newId']:>5}")
+                type_text(T * 6 + 4, T * 8, f"0 1 2 3")
+                type_text(T * 6 + 4, T * 9, f"4 5 6 7")
+                type_text(T * 6 + 4, T * 10, f"8 9 DEL")
+                type_text(T * 6 + 8, T * 12, f"OK  BK")
 
         if STATE['help']:
-            pyxel.bltm(0, 40, 0, 192, 128, 128, 64)
-            pyxel.text(0, 48, "  TAP SEQUENCE: MOVE AT ONCE", 7)
-            pyxel.text(0, 64, " TAP          : MOVE NEXT CARD", 7)
-            pyxel.text(0, 64, "     HOME CELL", 6)
-            pyxel.text(0, 80, "   TAP        : SELECT GAME", 7)
-            pyxel.text(0, 80, "       GAME ID", 15)
-            pyxel.text(60, 90, f"OK", 7)
+            pyxel.bltm(0, T * 5, 0, T * 24, T * 16, T * 16, T * 8)
+            if T == 8:
+                pyxel.text(0, T * 6, "  TAP SEQUENCE: MOVE AT ONCE", 7)
+                pyxel.text(0, T * 8, " TAP          : MOVE NEXT CARD", 7)
+                pyxel.text(0, T * 8, "     HOME CELL", 6)
+                pyxel.text(0, T * 10, "   TAP        : SELECT GAME", 7)
+                pyxel.text(0, T * 10, "       GAME ID", 15)
+                pyxel.text(T * 7 + 4, T * 11 + 2, f"OK", 7)
+            else:
+                type_text(0, T * 6, "  TAP SEQUENCE: MOVE AT ONCE")
+                type_text(0, T * 8, " TAP          : MOVE NEXT CARD")
+                type_text(0, T * 8, "     HOME CELL")
+                type_text(0, T * 10, "   TAP        : SELECT GAME")
+                type_text(0, T * 10, "       GAME ID")
+                type_text(T * 7 + 8, T * 11, f"OK")
 
 App()
