@@ -98,11 +98,14 @@ def type_text(x, y, s, col=0):
 class App:
     def __init__(self):
         pyxel.init(T * 16, T * 24, title="Freecell", display_scale= 32 // T , quit_key=pyxel.KEY_Q, fps=FPS)
-        if DeviceChecker().is_pc():
+        self.is_pc = DeviceChecker().is_pc()
+        if self.is_pc:
             pyxel.mouse(True)
         pyxel.load("freecell.pyxres" if T == 8 else "freecell16.pyxres")
         self.restart()
+        self.do_draw()
         pyxel.run(self.update, self.draw)
+        self.changed = False
 
     def restart(self, id=0):
         if id == 0:
@@ -129,8 +132,10 @@ class App:
                 for i in range(10):
                     if T * (6 + i % 4) <= x and x < T * (7 + i % 4) and T * (8 + i // 4) <= y and y < T * (9 + i // 4):
                         STATE['newId'] += str(i)
+                        self.changed = True
             if T * 8 <= x and x < T * 10 and T * 10 <= y and y < T * 11:
                 STATE['newId'] = STATE['newId'][:-1]
+                self.changed = True
 
             if T * 6 <= x and x < T * 8 and T * 12 <= y and y < T * 13:
                 if STATE['newId'] and int(STATE['newId']) != STATE['id']:
@@ -138,11 +143,13 @@ class App:
                     self.restart(int(STATE['newId']))
                 STATE['newId'] = ''
                 STATE['idSelection'] = False
+                self.changed = True
                 return
 
             if T * 8 <= x and x < T * 10 and T * 12 <= y and y < T * 13:
                 STATE['newId'] = ''
                 STATE['idSelection'] = False
+                self.changed = True
 
     def undo(self):
         STATE['isGameOver'] = False
@@ -178,6 +185,7 @@ class App:
 
     def do_move(self):
         global MOVE
+        self.changed = True
         for m in MOVE:
             if m.cnt == SPD:
                 if m.to[1] >= 0:
@@ -251,13 +259,16 @@ class App:
             x, y = pyxel.mouse_x, pyxel.mouse_y
             if T * 7 <= x and x < T * 9 and T * 11 <= y and y < T * 12:
                 STATE['help'] = False
+                self.changed = True
 
     def update(self):
+        self.changed = False
         global MOVE
 
         if pyxel.frame_count % FPS == 0 and not STATE['idSelection'] and not STATE['help'] and not STATE['isGameOver'] and not STATE['isGameClear']:
             if STATE['time'] < 5999:
                 STATE['time'] += 1
+                self.changed = True
 
         if MOVE:
             self.do_move()
@@ -280,21 +291,26 @@ class App:
             if 0 <= y and y < T and 0 <= x and x < T * 3: # id
                 STATE['idSelection'] = True
                 STATE['newId'] = str(STATE['id'])
+                self.changed = True
                 return
             if 0 <= y and y < T and T * 3 <= x and x < T * 6: # new
                 STATE['time'] = 0
                 self.restart()
+                self.changed = True
                 return
             if 0 <= y and y < T and T * 6 <= x and x < T * 9: # retry
                 if STATE['isGameClear']:
                     STATE['time'] = 0
                 self.restart(STATE['id'])
+                self.changed = True
                 return
             if 0 <= y and y < T and T * 9 <= x and x < T * 12: # undo
                 self.undo()
+                self.changed = True
                 return
             if 0 <= y and y < T and T * 12 <= x and x < T * 13: # help
                 STATE['help'] = True                
+                self.changed = True
                 return
 
         if STATE['isGameClear'] or STATE['isGameOver']:
@@ -303,10 +319,12 @@ class App:
         if all([c.num == 12 for c in HOME]):
             STATE['isGameClear'] = True
             UNDO.clear()
+            self.changed = True
             return
 
         if self.is_game_over():
             STATE['isGameOver'] = True
+            self.changed = True
             return
 
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
@@ -420,6 +438,11 @@ class App:
         return False
 
     def draw(self):
+        # if self.changed or self.is_pc:
+        if self.changed:
+            self.do_draw()
+
+    def do_draw(self):
         pyxel.bltm(0, 0, 0, 0, 0, T * 16, T * 24)
 
         mm, ss = STATE['time'] // 60 , STATE['time'] % 60
