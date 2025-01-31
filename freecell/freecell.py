@@ -48,8 +48,6 @@ STATE = {
     'help': False,
 }
 
-# gameover clear right click
-
 # copied from https://rosettacode.org/wiki/Deal_cards_for_FreeCell#Python
 def randomGenerator(seed=1):
     max_int32 = (1 << 31) - 1
@@ -103,9 +101,10 @@ class App:
             pyxel.mouse(True)
         pyxel.load("freecell.pyxres" if T == 8 else "freecell16.pyxres")
         self.restart()
-        self.do_draw()
+        self.changed = True
+        self.time_changed = False
+
         pyxel.run(self.update, self.draw)
-        self.changed = False
 
     def restart(self, id=0):
         if id == 0:
@@ -267,7 +266,7 @@ class App:
         if pyxel.frame_count % FPS == 0 and not STATE['idSelection'] and not STATE['help'] and not STATE['isGameOver'] and not STATE['isGameClear']:
             if STATE['time'] < 5999:
                 STATE['time'] += 1
-                self.changed = True
+                self.time_changed = True
 
         if MOVE:
             self.do_move()
@@ -437,13 +436,24 @@ class App:
         return False
 
     def draw(self):
+        # self.is_pc = False
         if self.changed or self.is_pc:
             self.do_draw()
             self.changed = False
+        elif self.time_changed or self.is_pc:
+            self.do_draw_time()
+            self.time_changed = False
+
+    def do_draw_time(self):
+        pyxel.bltm(T * 13, 0, 0, T * 13, 0, T * 3, T)
+        mm, ss = STATE['time'] // 60 , STATE['time'] % 60
+        if T == 8:
+            pyxel.text(102, 2, f"{mm:3}:{ss:02}", 7)
+        else:
+            type_text(T * 12 + 12, 0, f"{mm:3}:{ss:02}")
 
     def do_draw(self):
         pyxel.bltm(0, 0, 0, 0, 0, T * 16, T * 24)
-
         mm, ss = STATE['time'] // 60 , STATE['time'] % 60
         if T == 8:
             pyxel.text(2, 2, f"{STATE['id']:05}", 15 if STATE['help'] or STATE['idSelection'] else 7)
@@ -459,7 +469,6 @@ class App:
             type_text(9 * T + 8, 0, f"UNDO", 0 if self.has_undo() else 1)
             type_text(12 * T + 4, 0, f"?")
             type_text(T * 12 + 12, 0, f"{mm:3}:{ss:02}")
-
 
         for i, d in enumerate(DECK):
             for j, c in enumerate(d):
