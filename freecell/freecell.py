@@ -262,7 +262,6 @@ class App:
                 self.changed = True
 
     def update(self):
-        self.changed = False
         global MOVE
 
         if pyxel.frame_count % FPS == 0 and not STATE['idSelection'] and not STATE['help'] and not STATE['isGameOver'] and not STATE['isGameClear']:
@@ -438,9 +437,9 @@ class App:
         return False
 
     def draw(self):
-        # if self.changed or self.is_pc:
-        if self.changed:
+        if self.changed or self.is_pc:
             self.do_draw()
+            self.changed = False
 
     def do_draw(self):
         pyxel.bltm(0, 0, 0, 0, 0, T * 16, T * 24)
