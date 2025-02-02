@@ -5,7 +5,7 @@ import copy
 import platform
 # from js はEmscripten環境以外では例外発生するのでcatchして環境を判定する
 try:
-    from js import navigator
+    from js import navigator # type: ignore
     is_web_launcher = True
 except ImportError:
     is_web_launcher = False
@@ -158,6 +158,7 @@ class App:
             FREE = UNDO[1]
             HOME = UNDO[2]
             UNDO.clear()
+            self.changed = True
 
     def has_undo(self):
         return len(UNDO) > 0
@@ -304,7 +305,6 @@ class App:
                 return
             if 0 <= y and y < T and T * 9 <= x and x < T * 12: # undo
                 self.undo()
-                self.changed = True
                 return
             if 0 <= y and y < T and T * 12 <= x and x < T * 13: # help
                 STATE['help'] = True                
@@ -440,6 +440,7 @@ class App:
         if self.changed or self.is_pc:
             self.do_draw()
             self.changed = False
+            self.time_changed = False
         elif self.time_changed or self.is_pc:
             self.do_draw_time()
             self.time_changed = False
