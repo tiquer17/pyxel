@@ -88,10 +88,12 @@ class Card:
         pyxel.blt((self.x + T) , (self.y + 2 * T), 0, self.num * T, col * T, - T, - T, 15)
 
 
-def type_text(x, y, s, col=0):
+def type_text(x, y, s, col=7):
     for i, c in enumerate(s):
         ascii = ord(c) - 32
-        pyxel.blt(x + i * 8, y, 1, (ascii % 16) * 8, (ascii //16 + col * 4)* 16, 8, 16, 0)
+        pyxel.pal(7, col)
+        pyxel.blt(x + i * 8, y, 1, (ascii % 16) * 8, (ascii //16)* 16, 8, 16, 0)
+        pyxel.pal()
 
 class App:
     def __init__(self):
@@ -464,10 +466,10 @@ class App:
             pyxel.text(98, 2, f"?", 7)
             pyxel.text(102, 2, f"{mm:3}:{ss:02}", 7)
         else:
-            type_text(4, 0, f"{STATE['id']:05}", 3 if STATE['help'] or STATE['idSelection'] else 0)
+            type_text(4, 0, f"{STATE['id']:05}", 15 if STATE['help'] or STATE['idSelection'] else 7)
             type_text(3 * T + 12, 0, f"NEW")
             type_text(6 * T + 4, 0, f"RETRY")
-            type_text(9 * T + 8, 0, f"UNDO", 0 if self.has_undo() else 1)
+            type_text(9 * T + 8, 0, f"UNDO", 7 if self.has_undo() else 11)
             type_text(12 * T + 4, 0, f"?")
             type_text(T * 12 + 12, 0, f"{mm:3}:{ss:02}")
 
@@ -519,7 +521,7 @@ class App:
                 pyxel.text(T * 6 + 4, T * 12 + 2, f"OK  BK", 7)
             else:
                 type_text(T * 5, T * 5, f"ENTER")
-                type_text(T * 5, T * 5, f"      GAME ID", 3)
+                type_text(T * 5, T * 5, f"      GAME ID", 15)
                 type_text(T * 7 + 4, T * 6, f"{STATE['newId']:>5}")
                 type_text(T * 6 + 4, T * 8, f"0 1 2 3")
                 type_text(T * 6 + 4, T * 9, f"4 5 6 7")
@@ -538,9 +540,9 @@ class App:
             else:
                 type_text(0, T * 6, "  TAP SEQUENCE: MOVE AT ONCE")
                 type_text(0, T * 8, " TAP          : MOVE NEXT CARD")
-                type_text(0, T * 8, "     HOME CELL", 2)
+                type_text(0, T * 8, "     HOME CELL", 6)
                 type_text(0, T * 10, "   TAP        : SELECT GAME")
-                type_text(0, T * 10, "       GAME ID", 3)
+                type_text(0, T * 10, "       GAME ID", 15)
                 type_text(T * 7 + 8, T * 11, f"OK")
 
 App()
