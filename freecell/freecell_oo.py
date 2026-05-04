@@ -1,6 +1,4 @@
 import pyxel
-import copy
-from enum import Enum
 
 # from https://qiita.com/igarashisan_t/items/6e5fc39dd5bafd195000
 import platform
@@ -39,7 +37,7 @@ class Game:
         if self.is_pc:
             pyxel.mouse(True)
         pyxel.load("freecell_oo.pyxres")
-        self.board = Board(self)
+        self.board = Board(self.is_pc)
         pyxel.run(self.update, self.draw)
 
     def update(self):
@@ -54,13 +52,12 @@ class Board:
     STATE_GAMEOVER = 2
     STATE_GAMECLEAR = 3
 
-    def __init__(self, game):
-        self.game = game
-        self.time = Time()
+    def __init__(self, is_pc):
+        self.is_pc = is_pc
+        self.time = Time(self)
         self.move = Move(self)
-        self.game_id = 0
         self.game_id_dialog = GameIdDialog(self)
-        self.help_dialog = HelpDialog()
+        self.help_dialog = HelpDialog(self)
         self.btn_game_id = Button(0, 0, 3 * T)
         self.btn_new = Button(3 * T, 0, 3 * T, label="NEW")
         self.btn_retry = Button(6 * T, 0, 3 * T, label="RETRY")
@@ -69,6 +66,7 @@ class Board:
         self.reset()
 
     def reset(self, game_id=0, retry=False):
+        self.changed = True
         self.freecells = [Free(i) for i in range(4)]
         self.homecells = [Home(i) for i in range(4)]
         self.decks = [Deck(i) for i in range(8)]
@@ -87,28 +85,26 @@ class Board:
             self.time.reset()
             self.state = Board.STATE_NEW
 
+
     def update(self):
 
         if self.move.is_moving():
             self.move.update()
             return
 
-        if self.game_id_dialog.is_shown:
-            if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
-                x, y = pyxel.mouse_x, pyxel.mouse_y
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+            x, y = pyxel.mouse_x, pyxel.mouse_y
+            if self.game_id_dialog.is_shown:
                 for b in self.game_id_dialog.buttons:
                     if b.contains(x, y):
                         b.click()
                         return
-            return
+                return
 
-        if self.help_dialog.is_shown:
-            if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
-                x, y = pyxel.mouse_x, pyxel.mouse_y
+            if self.help_dialog.is_shown:
                 if self.help_dialog.button.contains(x, y):
                     self.help_dialog.hide()
-            return
-
+                return
 
         if self.state in (Board.STATE_NEW, Board.STATE_PLAYING) and pyxel.frame_count % FPS == 0:
             self.time.update()
@@ -239,28 +235,32 @@ class Board:
         return False
 
     def draw(self):
-        pyxel.cls(3)
-        self.time.draw()
-        self.btn_game_id.draw()
-        self.btn_new.draw()
-        self.btn_retry.draw()
-        self.btn_undo.draw()
-        self.btn_help.draw()
-        for c in self.freecells:
-            c.draw()
-        for c in self.homecells:
-            c.draw()
-        for d in self.decks:
-            d.draw()
-        self.move.draw()
-        self.game_id_dialog.draw()
-        self.help_dialog.draw()
+        if self.time_changed or self.is_pc:
+            self.time_changed = False
+            self.time.draw()
+        if self.changed or self.is_pc:
+            self.changed = False
+            pyxel.rect(0, T, T * 16, T * 23, 3)
+            self.btn_game_id.draw()
+            self.btn_new.draw()
+            self.btn_retry.draw()
+            self.btn_undo.draw()
+            self.btn_help.draw()
+            for c in self.freecells:
+                c.draw()
+            for c in self.homecells:
+                c.draw()
+            for d in self.decks:
+                d.draw()
+            self.move.draw()
+            if self.state == Board.STATE_GAMEOVER:
+                pyxel.rect(T * 5, T * 6, T * 6, T * 3, 3)
+                type_text(T * 6, T * 7, f"YOU LOSE")
+            if self.state == Board.STATE_GAMECLEAR:
+                type_text(T * 6, T * 7, f"YOU WIN!")
+            self.game_id_dialog.draw()
+            self.help_dialog.draw()
 
-        if self.state == Board.STATE_GAMEOVER:
-            pyxel.rect(T * 5, T * 6, T * 6, T * 3, 3)
-            type_text(T * 6, T * 7, f"YOU LOSE")
-        if self.state == Board.STATE_GAMECLEAR:
-            type_text(T * 6, T * 7, f"YOU WIN!")
 
 class Card:
     def __init__(self, num, suit, x=0, y=0, fm=None, to=None, cnt=0):
@@ -285,11 +285,8 @@ class Card:
 class Deck:
     def __init__(self, id):
         self.id = id
+        self.x, self.y, self.w, self.h = 2 * id * T, 5 * T, 2 * T, 19 * T
         self.cards = []
-        self.x = 2 * id * T
-        self.y = 5 * T
-        self.w = 2 * T
-        self.h = 19 * T
 
     def contains(self, x, y):
         return self.x <= x < self.x + self.w and self.y <= y < self.y + self.h
@@ -330,10 +327,7 @@ class Deck:
 class Home:
     def __init__(self, id):
         self.id = id
-        self.w = 2 * T
-        self.h = 3 * T
-        self.x = (id + 4) * self.w
-        self.y = T
+        self.x, self.y, self.w, self.h = (id + 4) * 2 * T, T, 2 * T, 3 * T
         self.card = Card(0, id)
 
     def contains(self, x, y):
@@ -352,15 +346,13 @@ class Home:
             pyxel.blt(self.x, self.y, 0, 0, 2 * T, self.w, self.h)
             pyxel.pal()
         else:
+            self.card.x, self.card.y = self.x, self.y
             self.card.draw()
 
 class Free:
     def __init__(self, id):
         self.id = id
-        self.w = 2 * T
-        self.h = 3 * T
-        self.x = id * self.w
-        self.y = T
+        self.x, self.y, self.w, self.h = id * 2 * T, T, 2 * T, 3 * T
         self.card = None
 
     def contains(self, x, y):
@@ -370,13 +362,13 @@ class Free:
         return self.card is None
     
     def take(self, card):
-        card.x, card.y = self.x, self.y
         self.card = card
 
     def draw(self):
         if self.card is None:
             pyxel.blt(self.x, self.y, 0, 0, 2 * T, self.w, self.h)
         else:
+            self.card.x, self.card.y = self.x, self.y
             self.card.draw()
 
 class Move:
@@ -387,20 +379,19 @@ class Move:
         self.snapshot = None
 
     def set(self, cards, fm, to, can_undo=True):
+        self.board.changed = True
         if self.board.state == Board.STATE_NEW:
             self.board.state = Board.STATE_PLAYING
         if can_undo:
-            self.snapshot = (copy.deepcopy(self.board.homecells), copy.deepcopy(self.board.freecells), copy.deepcopy(self.board.decks))
+            self.snapshot = ([h.card for h in self.board.homecells], [f.card for f in self.board.freecells], [d.cards[:] for d in self.board.decks])
         self.cards = cards
-        self.fm_x = cards[0].x
-        self.fm_y = cards[0].y
+        self.fm_x, self.fm_y = cards[0].x, cards[0].y
         if isinstance(to, Deck):
             self.to_y = to.y + len(to.cards) * T
         else:
             self.to_y = to.y
-
         if isinstance(fm, Deck):
-            fm.cards = fm.cards[: -1 * len(cards)]
+            del fm.cards[-len(cards):]
         else:
             fm.card = None
         self.fm = fm
@@ -417,11 +408,18 @@ class Move:
         self.snapshot = None
 
     def undo(self):
-        self.board.homecells, self.board.freecells, self.board.decks = self.snapshot
+        self.board.changed = True
+        for i, c in enumerate(self.snapshot[0]):
+            self.board.homecells[i].card = c
+        for i, c in enumerate(self.snapshot[1]):
+            self.board.freecells[i].card = c
+        for i, cards in enumerate(self.snapshot[2]):
+            self.board.decks[i].cards = cards[:]
         self.snapshot = None
         self.board.state = Board.STATE_PLAYING
 
     def update(self):
+        self.board.changed = True
         if self.cnt == 0:
             for c in self.cards:
                 self.to.take(c)
@@ -430,6 +428,7 @@ class Move:
                 self.board.state = Board.STATE_GAMEOVER
             if self.board.is_game_clear():
                 self.board.state = Board.STATE_GAMECLEAR
+                self.snapshot = None
         else:
             for i, c in enumerate(self.cards):
                 c.x = (self.fm_x * self.cnt + self.to.x * (Move.SPEED - self.cnt)) / Move.SPEED
@@ -441,16 +440,20 @@ class Move:
             c.draw()
 
 class Time:
-    def __init__(self):
+    def __init__(self, board):
         self.x, self.y, self.w, self.h = 13 * T, 0, T * 3, T
+        self.board = board
         self.reset()
 
     def reset(self):
+        self.board.time_changed = True
         self.time = 0
 
     def update(self):
         if self.time < 5999:
+            self.board.time_changed = True
             self.time += 1
+
     def draw(self):
         pyxel.rect(self.x, self.y, self.w, self.h, 3)
         mm, ss = self.time // 60 , self.time % 60
@@ -495,12 +498,15 @@ class GameIdDialog:
             self.buttons.append(Button(T * (6 + 2 * i), T * 13, T * 2, on_click=lambda c=c: self.edit(c), label=c))
 
     def show(self, game_id):
+        self.board.changed = True
         self.game_id = str(game_id)
         self.is_shown = True
+
     def hide(self):
         self.is_shown = False
 
     def edit(self, c):
+        self.board.changed = True
         if c in "0123456789":
             if len(self.game_id) < 5:
                 self.game_id += c
@@ -531,14 +537,18 @@ class GameIdDialog:
                 b.draw()
 
 class HelpDialog:
-    def __init__(self):
+    def __init__(self, board):
         self.x, self.y, self.w, self.h = 0, T * 5, T * 16, T * 10
+        self.board = board
         self.button = Button(T * 7, T * 13, T * 2, on_click=self.hide, label="OK")
         self.is_shown = False
 
     def show(self):
+        self.board.changed = True
         self.is_shown = True
+
     def hide(self):
+        self.board.changed = True
         self.is_shown = False
 
     def draw(self):
@@ -578,7 +588,6 @@ def deal(seed):
         j = (nc - 1) - r % (nc - i)
         cards[i], cards[j] = cards[j], cards[i]
     return cards
-
 
 Game()
 
