@@ -81,14 +81,14 @@ class Board:
             self.decks[i % 8].cards.append(Card(c // 4 + 1, [2, 3, 1, 0][c % 4]))
         self.btn_game_id.label= f"{self.game_id:05}"
         self.move.reset()
-        if retry:
-            self.state : int = Board.STATE_PLAYING
-        else:
+        self.state: int = Board.STATE_NEW
+        if not retry:
             self.time.reset()
-            self.state: int = Board.STATE_NEW
-
 
     def update(self):
+
+        if pyxel.frame_count % FPS == 0 and self.state in (Board.STATE_NEW, Board.STATE_PLAYING) and not self.game_id_dialog.is_shown and not self.help_dialog.is_shown:
+            self.time.update()
 
         if self.move.is_moving():
             self.move.update()
@@ -108,11 +108,9 @@ class Board:
                     self.help_dialog.hide()
                 return
 
-        if self.state in (Board.STATE_NEW, Board.STATE_PLAYING) and pyxel.frame_count % FPS == 0:
-            self.time.update()
-
         if self.state == Board.STATE_PLAYING and self.autoplay():
             return
+
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             x, y = pyxel.mouse_x, pyxel.mouse_y
 
@@ -259,7 +257,9 @@ class Board:
                 pyxel.rect(T * 5, T * 6, T * 6, T * 3, 3)
                 type_text(T * 6, T * 7, f"YOU LOSE")
             if self.state == Board.STATE_GAMECLEAR:
-                type_text(T * 6, T * 7, f"YOU WIN!")
+                time = self.time.get_time().strip()
+                type_text(T * 6, T * 7, f"YOU WIN!", shading=True)
+                type_text(T * 2 + 8, T * 9, f"CLEARED #{self.game_id:05} IN {time}", shading=True)
             self.game_id_dialog.draw()
             self.help_dialog.draw()
 
@@ -456,10 +456,13 @@ class Time:
             self.board.time_changed = True
             self.time += 1
 
+    def get_time(self):
+        mm, ss = self.time // 60 , self.time % 60
+        return f"{mm:2}:{ss:02}"
+
     def draw(self):
         pyxel.rect(self.x, self.y, self.w, self.h, 3)
-        mm, ss = self.time // 60 , self.time % 60
-        type_text(T * 12 + 12, 0, f"{mm:3}:{ss:02}")
+        type_text(self.x + 4, self.y, self.get_time())
 
 class Button:
     def __init__(self, x: int, y: int, w: int, on_click=lambda: None, label: str = "", is_active=lambda: True):
@@ -566,9 +569,12 @@ class HelpDialog:
 # Utilities
 ############
 
-def type_text(x: int, y: int, s: str, col=7):
+def type_text(x: int, y: int, s: str, col=7, shading=False):
     for i, c in enumerate(s):
         ascii = ord(c) - 32
+        if shading:
+            pyxel.pal(7, 0)
+            pyxel.blt(x + i * 8 + 1, y + 1, 1, (ascii % 16) * 8, (ascii //16)* 16, 8, 16, 0)
         pyxel.pal(7, col)
         pyxel.blt(x + i * 8, y, 1, (ascii % 16) * 8, (ascii //16)* 16, 8, 16, 0)
         pyxel.pal()
