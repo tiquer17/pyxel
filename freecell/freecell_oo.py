@@ -1,3 +1,4 @@
+from __future__ import annotations
 import pyxel
 
 # from https://qiita.com/igarashisan_t/items/6e5fc39dd5bafd195000
@@ -52,7 +53,7 @@ class Board:
     STATE_GAMEOVER = 2
     STATE_GAMECLEAR = 3
 
-    def __init__(self, is_pc):
+    def __init__(self, is_pc: bool):
         self.is_pc = is_pc
         self.time = Time(self)
         self.move = Move(self)
@@ -65,25 +66,26 @@ class Board:
         self.btn_help = Button(12 * T, 0, T, label="?")
         self.reset()
 
-    def reset(self, game_id=0, retry=False):
-        self.changed = True
-        self.freecells = [Free(i) for i in range(4)]
-        self.homecells = [Home(i) for i in range(4)]
-        self.decks = [Deck(i) for i in range(8)]
+    def reset(self, game_id: int = 0, retry: bool = False):
+        self.changed : bool = True
+        self.time_changed: bool = False
+        self.freecells : list[Free] = [Free(i) for i in range(4)]
+        self.homecells : list[Home] = [Home(i) for i in range(4)]
+        self.decks : list[Deck] = [Deck(i) for i in range(8)]
         if game_id == 0:
-            self.game_id = pyxel.rndi(1, 9999)
+            self.game_id : int = pyxel.rndi(1, 9999)
         else:
-            self.game_id = game_id
+            self.game_id : int  = game_id
         cards = deal(self.game_id)
         for i, c in enumerate(cards):
             self.decks[i % 8].cards.append(Card(c // 4 + 1, [2, 3, 1, 0][c % 4]))
         self.btn_game_id.label= f"{self.game_id:05}"
         self.move.reset()
         if retry:
-            self.state = Board.STATE_PLAYING
+            self.state : int = Board.STATE_PLAYING
         else:
             self.time.reset()
-            self.state = Board.STATE_NEW
+            self.state: int = Board.STATE_NEW
 
 
     def update(self):
@@ -193,10 +195,10 @@ class Board:
                             self.move.set(fm.cards[-1:], fm, to)
                             return
 
-    def is_game_clear(self):
+    def is_game_clear(self) -> bool:
         return all([h.card.num == 13 for h in self.homecells])        
 
-    def is_game_over(self):
+    def is_game_over(self) -> bool:
         if any([f.is_empty() for f in self.freecells]):
             return False
         if any([d.is_empty() for d in self.decks]):
@@ -217,7 +219,7 @@ class Board:
         only plays an available card to its homecell automatically when all of the lower-ranked cards of the opposite color are already on the homecells
         (except that a two is played if the corresponding ace is on its homecell); aces are always played when available.
         """
-        def can_autoplay(c):
+        def can_autoplay(c: Card):
             return self.homecells[c.suit].can_take(c) and (c.num == 2 or c.num <= min([self.homecells[i].card.num for i in range((c.suit + 1) % 2,4,2)]) + 1)
 
         for fm in self.decks:
@@ -263,13 +265,13 @@ class Board:
 
 
 class Card:
-    def __init__(self, num, suit, x=0, y=0, fm=None, to=None, cnt=0):
+    def __init__(self, num: int, suit: int, x: int = 0, y: int = 0):
         self.num = num # start with one
         self.suit = suit # 0: spade, 1: heart, 2: club, 3: diamond
         self.x = x
         self.y = y
 
-    def can_take(self, card):
+    def can_take(self, card: Card) -> bool:
         return self.num - card.num == 1 and (self.suit + card.suit) % 2 == 1
 
     def draw(self):
@@ -283,15 +285,15 @@ class Card:
         pyxel.pal()
 
 class Deck:
-    def __init__(self, id):
+    def __init__(self, id: int):
         self.id = id
         self.x, self.y, self.w, self.h = 2 * id * T, 5 * T, 2 * T, 19 * T
-        self.cards = []
+        self.cards : list[Card] = []
 
-    def contains(self, x, y):
+    def contains(self, x: int, y: int) -> bool:
         return self.x <= x < self.x + self.w and self.y <= y < self.y + self.h
 
-    def get_sequence(self, i):
+    def get_sequence(self, i: int) -> list[Card]:
         if self.is_empty():
             return []
         n_cards = len(self.cards)
@@ -307,15 +309,15 @@ class Deck:
             tmp = c
         return cards
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         return not self.cards
 
-    def can_take(self, cards, num_super_move=1):
+    def can_take(self, cards: list[Card], num_super_move: int = 1) -> bool:
         if len(cards) > num_super_move:
             return False
         return self.is_empty() or self.cards[-1].can_take(cards[0]) 
 
-    def take(self, card):
+    def take(self, card: Card):
         self.cards.append(card)
 
     def draw(self):
@@ -325,10 +327,10 @@ class Deck:
             c.draw()
 
 class Home:
-    def __init__(self, id):
+    def __init__(self, id: int):
         self.id = id
         self.x, self.y, self.w, self.h = (id + 4) * 2 * T, T, 2 * T, 3 * T
-        self.card = Card(0, id)
+        self.card : Card = Card(0, id)
 
     def contains(self, x, y):
         return self.x <= x < self.x + self.w and self.y <= y < self.y + self.h
@@ -336,7 +338,7 @@ class Home:
     def can_take(self, card):
         return card.suit == self.id and card.num - self.card.num == 1
 
-    def take(self, card):
+    def take(self, card: Card):
         card.x, card.y = self.x, self.y
         self.card = card
 
@@ -350,10 +352,10 @@ class Home:
             self.card.draw()
 
 class Free:
-    def __init__(self, id):
+    def __init__(self, id: int):
         self.id = id
         self.x, self.y, self.w, self.h = id * 2 * T, T, 2 * T, 3 * T
-        self.card = None
+        self.card: Card | None = None
 
     def contains(self, x, y):
         return self.x <= x < self.x + self.w and self.y <= y < self.y + self.h
@@ -361,7 +363,7 @@ class Free:
     def is_empty(self):
         return self.card is None
     
-    def take(self, card):
+    def take(self, card: Card):
         self.card = card
 
     def draw(self):
@@ -373,12 +375,12 @@ class Free:
 
 class Move:
     SPEED = 4
-    def __init__(self, board):
+    def __init__(self, board: Board):
         self.cards = []
         self.board = board
         self.snapshot = None
 
-    def set(self, cards, fm, to, can_undo=True):
+    def set(self, cards: list[Card], fm: Deck | Free, to: Deck | Free | Home, can_undo: bool = True):
         self.board.changed = True
         if self.board.state == Board.STATE_NEW:
             self.board.state = Board.STATE_PLAYING
@@ -398,10 +400,10 @@ class Move:
         self.to = to
         self.cnt = Move.SPEED
 
-    def is_moving(self):
+    def is_moving(self) -> bool:
         return bool(self.cards)
     
-    def has_undo(self):
+    def has_undo(self) -> bool:
         return self.snapshot is not None
     
     def reset(self):
@@ -440,14 +442,14 @@ class Move:
             c.draw()
 
 class Time:
-    def __init__(self, board):
+    def __init__(self, board: Board):
         self.x, self.y, self.w, self.h = 13 * T, 0, T * 3, T
         self.board = board
         self.reset()
 
     def reset(self):
         self.board.time_changed = True
-        self.time = 0
+        self.time: int = 0
 
     def update(self):
         if self.time < 5999:
@@ -460,13 +462,13 @@ class Time:
         type_text(T * 12 + 12, 0, f"{mm:3}:{ss:02}")
 
 class Button:
-    def __init__(self, x, y, w, on_click=lambda: None, label="", is_active=(lambda: True)):
+    def __init__(self, x: int, y: int, w: int, on_click=lambda: None, label: str = "", is_active=lambda: True):
         self.x, self.y, self.w, self.h = x, y, w, T
         self.on_click = on_click
         self.label = label
-        self.is_active = is_active
+        self.is_active: bool = is_active
 
-    def contains(self, x, y):
+    def contains(self, x: int, y: int) -> bool:
         return self.x <= x < self.x + self.w and self.y <= y < self.y + self.h
     
     def click(self):
@@ -481,11 +483,11 @@ class Button:
         type_text(self.x + self.w // 2 - len(self.label) * T // 4, self.y, self.label, 7 if self.is_active() else 11)
 
 class GameIdDialog:
-    def __init__(self, board):
+    def __init__(self, board: Board):
         self.x, self.y, self.w, self.h = T * 4, T * 4, T * 8, T * 11
         self.board = board
-        self.buttons = []
-        self.is_shown = False
+        self.buttons: list[Button] = []
+        self.is_shown: bool = False
 
         for c in "0123456789":
             i = int(c)
@@ -497,7 +499,7 @@ class GameIdDialog:
         for i, c in enumerate(["OK", "CSL"]):
             self.buttons.append(Button(T * (6 + 2 * i), T * 13, T * 2, on_click=lambda c=c: self.edit(c), label=c))
 
-    def show(self, game_id):
+    def show(self, game_id: int):
         self.board.changed = True
         self.game_id = str(game_id)
         self.is_shown = True
@@ -505,7 +507,7 @@ class GameIdDialog:
     def hide(self):
         self.is_shown = False
 
-    def edit(self, c):
+    def edit(self, c: str):
         self.board.changed = True
         if c in "0123456789":
             if len(self.game_id) < 5:
@@ -537,7 +539,7 @@ class GameIdDialog:
                 b.draw()
 
 class HelpDialog:
-    def __init__(self, board):
+    def __init__(self, board: Board):
         self.x, self.y, self.w, self.h = 0, T * 5, T * 16, T * 10
         self.board = board
         self.button = Button(T * 7, T * 13, T * 2, on_click=self.hide, label="OK")
@@ -564,7 +566,7 @@ class HelpDialog:
 # Utilities
 ############
 
-def type_text(x, y, s, col=7):
+def type_text(x: int, y: int, s: str, col=7):
     for i, c in enumerate(s):
         ascii = ord(c) - 32
         pyxel.pal(7, col)
