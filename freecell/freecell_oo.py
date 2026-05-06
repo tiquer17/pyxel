@@ -81,9 +81,9 @@ class Board:
             self.decks[i % 8].cards.append(Card(c // 4 + 1, [2, 3, 1, 0][c % 4]))
         self.btn_game_id.label= f"{self.game_id:05}"
         self.move.reset()
-        self.state: int = Board.STATE_NEW
-        if not retry:
+        if not retry or self.state == Board.STATE_GAMECLEAR:
             self.time.reset()
+        self.state: int = Board.STATE_NEW
 
     def update(self):
 
