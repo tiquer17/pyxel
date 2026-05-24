@@ -73,7 +73,7 @@ class Board:
         self.homecells : list[Home] = [Home(i) for i in range(4)]
         self.decks : list[Deck] = [Deck(i) for i in range(8)]
         if game_id == 0:
-            self.game_id : int = pyxel.rndi(1, 9999)
+            self.game_id : int = pyxel.rndi(1, 99999)
         else:
             self.game_id : int  = game_id
         cards = deal(self.game_id)
