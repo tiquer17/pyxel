@@ -5,12 +5,12 @@ import pyxel
 import platform
 # from js はEmscripten環境以外では例外発生するのでcatchして環境を判定する
 try:
-    from js import navigator # type: ignore
+    from js import window, navigator # type: ignore
     is_web_launcher = True
 except ImportError:
     is_web_launcher = False
 
-class DeviceChecker:
+class Environment:
     def __init__(self):
         if is_web_launcher:
             # Web launcherから起動している場合、js関数でOS判定する
@@ -27,6 +27,13 @@ class DeviceChecker:
     def is_web_launcher(self):
         return is_web_launcher
 
+    def save(self, key, val):
+        if is_web_launcher:
+            window.localStorage.setItem(key, str(val))
+
+    def load(self, key):
+        return window.localStorage.getItem(key) if is_web_launcher else None
+
 T = 16
 FPS = 60
 
@@ -34,11 +41,12 @@ class Game:
 
     def __init__(self):
         pyxel.init(T * 16, T * 24, title="Freecell", display_scale= 32 // T , quit_key=pyxel.KEY_Q, fps=FPS)
-        self.is_pc = DeviceChecker().is_pc()
+        environment = Environment()
+        self.is_pc = environment.is_pc()
         if self.is_pc:
             pyxel.mouse(True)
         pyxel.load("freecell_oo.pyxres")
-        self.board = Board(self.is_pc)
+        self.board = Board(environment)
         pyxel.run(self.update, self.draw)
 
     def update(self):
@@ -53,8 +61,9 @@ class Board:
     STATE_GAMEOVER = 2
     STATE_GAMECLEAR = 3
 
-    def __init__(self, is_pc: bool):
-        self.is_pc = is_pc
+    def __init__(self, environment: Environment):
+        self.environment = environment
+        self.is_pc = environment.is_pc()
         self.time = Time(self)
         self.move = Move(self)
         self.game_id_dialog = GameIdDialog(self)
@@ -64,7 +73,8 @@ class Board:
         self.btn_retry = Button(6 * T, 0, 3 * T, label="RETRY")
         self.btn_undo = Button(9 * T, 0, 3 * T, label="UNDO", is_active=self.move.has_undo)
         self.btn_help = Button(12 * T, 0, T, label="?")
-        self.reset()
+        game_id = environment.load("current_game_id") or "0"
+        self.reset(int(game_id))
 
     def reset(self, game_id: int = 0, retry: bool = False):
         self.changed : bool = True
@@ -76,6 +86,7 @@ class Board:
             self.game_id : int = pyxel.rndi(1, 99999)
         else:
             self.game_id : int  = game_id
+        self.environment.save("current_game_id", str(self.game_id))
         cards = deal(self.game_id)
         for i, c in enumerate(cards):
             self.decks[i % 8].cards.append(Card(c // 4 + 1, [2, 3, 1, 0][c % 4]))
