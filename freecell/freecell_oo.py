@@ -70,11 +70,13 @@ class Board:
         self.help_dialog = HelpDialog(self)
         self.btn_game_id = Button(0, 0, 3 * T)
         self.btn_new = Button(3 * T, 0, 3 * T, label="NEW")
-        self.btn_retry = Button(6 * T, 0, 3 * T, label="RETRY")
-        self.btn_undo = Button(9 * T, 0, 3 * T, label="UNDO", is_active=self.move.has_undo)
         self.btn_help = Button(12 * T, 0, T, label="?")
         game_id = environment.load("current_game_id") or "0"
         self.reset(int(game_id))
+        self.btn_retry = Button(6 * T, 0, 3 * T, label="RETRY", is_active=lambda: self.state != Board.STATE_NEW)
+        self.btn_undo = Button(9 * T, 0, 3 * T, label="UNDO", is_active=self.move.has_undo)
+        self.new_dialog = ConfirmationDialog(self, "START A NEW GAME?", lambda: self.reset())
+        self.retry_dialog = ConfirmationDialog(self, "RETRY THIS GAME?", lambda: self.reset(self.game_id, retry=True))
 
     def reset(self, game_id: int = 0, retry: bool = False):
         self.changed : bool = True
@@ -98,7 +100,7 @@ class Board:
 
     def update(self):
 
-        if pyxel.frame_count % FPS == 0 and self.state in (Board.STATE_NEW, Board.STATE_PLAYING) and not self.game_id_dialog.is_shown and not self.help_dialog.is_shown:
+        if pyxel.frame_count % FPS == 0 and self.state in (Board.STATE_NEW, Board.STATE_PLAYING) and not self.game_id_dialog.is_shown and not self.help_dialog.is_shown and not self.new_dialog.is_shown and not self.retry_dialog.is_shown:
             self.time.update()
 
         if self.move.is_moving():
@@ -109,6 +111,20 @@ class Board:
             x, y = pyxel.mouse_x, pyxel.mouse_y
             if self.game_id_dialog.is_shown:
                 for b in self.game_id_dialog.buttons:
+                    if b.contains(x, y):
+                        b.click()
+                        return
+                return
+
+            if self.new_dialog.is_shown:
+                for b in self.new_dialog.buttons:
+                    if b.contains(x, y):
+                        b.click()
+                        return
+                return
+
+            if self.retry_dialog.is_shown:
+                for b in self.retry_dialog.buttons:
                     if b.contains(x, y):
                         b.click()
                         return
@@ -130,11 +146,14 @@ class Board:
                 return
 
             if self.btn_new.contains(x, y):
-                self.state = Board.STATE_NEW
-                self.reset()
+                if self.state == Board.STATE_NEW:
+                    self.reset()
+                else:
+                    self.new_dialog.show()
                 return
             if self.btn_retry.contains(x, y):
-                self.reset(self.game_id, retry=True)
+                if self.state != Board.STATE_NEW:
+                    self.retry_dialog.show()
                 return
             if self.btn_undo.contains(x, y):
                 if self.move.has_undo():
@@ -272,6 +291,8 @@ class Board:
                 type_text(T * 6, T * 7, f"YOU WIN!", shading=True)
                 type_text(T * 2 + 8, T * 9, f"CLEARED #{self.game_id:05} IN {time}", shading=True)
             self.game_id_dialog.draw()
+            self.new_dialog.draw()
+            self.retry_dialog.draw()
             self.help_dialog.draw()
 
 
@@ -510,8 +531,8 @@ class GameIdDialog:
 
         for i, c in enumerate(["-", "+"]):
             self.buttons.append(Button(T * (6 + 2 * i), T * 11, T * 2, on_click=lambda c=c: self.edit(c), label=c))
-        for i, c in enumerate(["OK", "CSL"]):
-            self.buttons.append(Button(T * (6 + 2 * i), T * 13, T * 2, on_click=lambda c=c: self.edit(c), label=c))
+        for i, c in enumerate(["BACK", "OK"]):
+            self.buttons.append(Button(T * (5 + 3 * i), T * 13, T * 3, on_click=lambda c=c: self.edit(c), label=c))
 
     def show(self, game_id: int):
         self.board.changed = True
@@ -540,7 +561,7 @@ class GameIdDialog:
             if self.game_id and self.board.game_id != int(self.game_id):
                 self.board.reset(int(self.game_id))
             self.hide()
-        elif c == "CSL":
+        elif c == "BACK":
             self.hide()
 
     def draw(self):
@@ -551,6 +572,39 @@ class GameIdDialog:
             type_text(T * 7 + 4, T * 6, f"{self.game_id:>5}")
             for b in self.buttons:
                 b.draw()
+
+
+class ConfirmationDialog:
+    def __init__(self, board: Board, text: str = "", action = lambda: None):
+        self.x, self.y, self.w, self.h = T * 3 , T * 5, T * 10, T * 5
+        self.board = board
+        self.buttons: list[Button] = []
+        self.buttons.append(Button(T * 5, T * 8, T * 3, on_click=self.hide, label="BACK"))
+        self.buttons.append(Button(T * 8, T * 8, T * 3, on_click=self.ok, label="OK"))
+        self.is_shown = False
+        self.text = text
+        self.action = action
+
+    def show(self):
+        self.board.changed = True
+        self.is_shown = True
+
+    def hide(self):
+        self.board.changed = True
+        self.is_shown = False
+
+    def ok(self):
+        self.action()
+        self.board.changed = True
+        self.is_shown = False
+
+    def draw(self):
+        if self.is_shown:
+            pyxel.rect(self.x, self.y, self.w, self.h, 5)
+            type_text(T * 4, T * 6, self.text)
+            for b in self.buttons:
+                b.draw()
+
 
 class HelpDialog:
     def __init__(self, board: Board):
