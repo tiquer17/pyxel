@@ -152,8 +152,10 @@ class Board:
                     self.new_dialog.show()
                 return
             if self.btn_retry.contains(x, y):
-                if self.state != Board.STATE_NEW:
+                if self.state == Board.STATE_PLAYING:
                     self.retry_dialog.show()
+                else:
+                    self.reset(self.game_id, retry=True)
                 return
             if self.btn_undo.contains(x, y):
                 if self.move.has_undo():
